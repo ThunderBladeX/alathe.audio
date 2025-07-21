@@ -69,6 +69,7 @@ class MainActivity : ComponentActivity() {
         val allGranted = permissions.values.all { it }
         if (allGranted) {
             initializeAudioEngine()
+            bindPlayerService()
             startMediaScanning()
         } else {
             handlePermissionDenied()
@@ -94,7 +95,6 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setupEdgeToEdgeDisplay()
         requestPermissions()
-        bindPlayerService()
         setContent {
             val currentSkin by skinViewModel.currentSkin.collectAsStateWithLifecycle()
             val isDarkTheme by settingsViewModel.isDarkTheme.collectAsStateWithLifecycle()
@@ -174,6 +174,7 @@ class MainActivity : ComponentActivity() {
             permissionLauncher.launch(permissionsToRequest.toTypedArray())
         } else {
             initializeAudioEngine()
+            bindPlayerService()
             startMediaScanning()
         }
     }
