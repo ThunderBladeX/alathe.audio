@@ -58,7 +58,9 @@ class MainActivity : ComponentActivity() {
     private var playerService: PlayerService? = null
     private var isBound = false
 
-    private lateinit var audioEngine: AudioEngineInterface
+    @Inject
+    lateinit var audioEngine: AudioEngineInterface
+
     private lateinit var navController: NavHostController
 
     private val permissionLauncher = registerForActivityResult(
@@ -90,7 +92,6 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        audioEngine = AudioEngineInterface()
         setupEdgeToEdgeDisplay()
         requestPermissions()
         bindPlayerService()
