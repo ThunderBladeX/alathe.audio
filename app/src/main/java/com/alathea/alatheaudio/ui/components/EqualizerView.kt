@@ -41,6 +41,15 @@ fun EqualizerView(
     val presets by viewModel.presets.collectAsState()
     val currentPreset by viewModel.currentPreset.collectAsState()
     val showFrequencyResponse by viewModel.showFrequencyResponse.collectAsState()
+    val curveBands = remember(eqMode, parametricBands, graphicBands) {
+        if (eqMode == EqMode.PARAMETRIC) {
+            parametricBands
+        } else {
+            graphicBands.mapIndexed { index, gain ->
+                ParametricBand(getGraphicEqFrequency(index), gain, 1.41f)
+            }
+        }
+    }
 
     Column(
         modifier = modifier
@@ -70,13 +79,7 @@ fun EqualizerView(
 
         if (showFrequencyResponse) {
             FrequencyResponseCurve(
-                bands = if (eqMode == EqMode.PARAMETRIC) parametricBands else graphicBands.mapIndexed { index, gain ->
-                    ParametricBand(
-                        frequency = getGraphicEqFrequency(index),
-                        gain = gain,
-                        q = 1.0f
-                    )
-                },
+                bands = curveBands,
                 skin = skin,
                 modifier = Modifier
                     .fillMaxWidth()
