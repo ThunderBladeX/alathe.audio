@@ -197,9 +197,15 @@ fun ParametricBandControl(
     isEnabled: Boolean,
     onBandChanged: (Int, Float, Float, Float) -> Unit
 ) {
-    var frequency by remember(band.frequency) { mutableFloatStateOf(band.frequency) }
-    var gain by remember(band.gain) { mutableFloatStateOf(band.gain) }
-    var q by remember(band.q) { mutableFloatStateOf(band.q) }
+    var frequency by remember { mutableFloatStateOf(band.frequency) }
+    var gain by remember { mutableFloatStateOf(band.gain) }
+    var q by remember { mutableFloatStateOf(band.q) }
+
+    LaunchedEffect(band) {
+        frequency = band.frequency
+        gain = band.gain
+        q = band.q
+    }
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -233,6 +239,8 @@ fun ParametricBandControl(
                     value = log10(frequency),
                     onValueChange = { logFreq ->
                         frequency = 10f.pow(logFreq)
+                    },
+                    onValueChangeFinished = {
                         onBandChanged(bandIndex, frequency, gain, q)
                     },
                     valueRange = log10(20f)..log10(20000f),
@@ -266,6 +274,8 @@ fun ParametricBandControl(
                     value = gain,
                     onValueChange = { newGain ->
                         gain = newGain
+                    },
+                    onValueChangeFinished = {
                         onBandChanged(bandIndex, frequency, gain, q)
                     },
                     valueRange = -15f..15f,
@@ -299,6 +309,8 @@ fun ParametricBandControl(
                     value = q,
                     onValueChange = { newQ ->
                         q = newQ
+                    },
+                    onValueChangeFinished = {
                         onBandChanged(bandIndex, frequency, gain, q)
                     },
                     valueRange = 0.1f..10f,
