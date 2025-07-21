@@ -439,14 +439,15 @@ fun DrawScope.drawFrequencyResponse(
 
     for (i in 0..size.width.toInt() step 2) {
         val frequency = 20f * (20000f / 20f).pow(i / size.width)
-        var totalGain = 0f
+        var totalMagnitude = 1.0f
         
         bands.forEach { band ->
-            val gain = calculateBandResponse(frequency, band.frequency, band.gain, band.q)
-            totalGain += gain
+            val bandMagnitude = calculateAccurateMagnitude(frequency, band.frequency, band.gain, band.q)
+            totalMagnitude *= bandMagnitude
         }
-        
-        val y = size.height / 2 - (totalGain / 30f) * size.height * 0.4f
+
+        val totalGainDb = 20f * log10(totalMagnitude.coerceAtLeast(0.0001f))
+        val y = size.height / 2 - (totalGainDb / 15f) * (size.height / 2f)
         points.add(Offset(i.toFloat(), y.coerceIn(0f, size.height)))
     }
 
