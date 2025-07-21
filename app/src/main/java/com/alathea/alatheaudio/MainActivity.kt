@@ -180,8 +180,23 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handlePermissionDenied() {
-        // ⚠️ Show dialog explaining why permissions are needed
-        // ⚠️ Potentially offer limited functionality mode
+        AlertDialog.Builder(this)
+            .setTitle("Permission Required")
+            .setMessage("This app needs access to your storage to play music from your device. Without this permission, some features may not work properly.")
+            .setCancelable(false)
+            .setPositiveButton("Grant Permission") { _, _ ->
+                requestPermissions()
+            }
+            .setNegativeButton("Continue in Limited Mode") { _, _ ->
+                Toast.makeText(this, "Limited mode enabled.", Toast.LENGTH_SHORT).show()
+                enterLimitedMode()
+            }
+            .show()
+    }
+
+    private fun enterLimitedMode() {
+        // ⚠️ Disable the file picker or local playback
+        // ⚠️ Maybe switch to streaming only, or just UI with dummy data
     }
 
     private fun bindPlayerService() {
