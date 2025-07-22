@@ -345,12 +345,13 @@ fun GraphicEqualizerView(
     onBandChanged: (Int, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val textMeasurer = rememberTextMeasurer()
     val density = LocalDensity.current
     
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(Unit) {
+            .pointerInput(bands, onBandChanged) {
                 detectDragGestures { change, _ ->
                     val x = change.position.x
                     val y = change.position.y
@@ -362,8 +363,7 @@ fun GraphicEqualizerView(
                 }
             }
     ) {
-        val textMeasurer = TextMeasurer(this)
-        drawGraphicEqualizer(bands, skin, isEnabled)
+        drawGraphicEqualizer(bands, skin, isEnabled, textMeasurer)
     }
 }
 
@@ -387,6 +387,10 @@ fun DrawScope.drawGraphicEqualizer(
         fontSize = 10.sp,
         textAlign = TextAlign.Center
     )
+    val textLayoutResult = textMeasurer.measure(
+        text = label,
+        style = frequencyLabelStyle
+    )
 
     bands.forEachIndexed { index, gain ->
         val x = bandWidth * (index + 0.5f)
@@ -396,15 +400,9 @@ fun DrawScope.drawGraphicEqualizer(
             else -> "${(frequency / 1000).format(1)}k"
         }
 
-        val textLayoutResult = textMeasurer.measure(
-            text = label,
-            style = frequencyLabelStyle
-        )
-
         drawText(
             textLayoutResult = textLayoutResult,
-            topLeft = Offset(x - textLayoutResult.size.width / 2, size.height - textLayoutResult.size.height - 2.dp.toPx()),
-            color = if (isEnabled) skin.secondaryTextColor else skin.disabledTextColor
+            topLeft = Offset(x - textLayoutResult.size.width / 2, size.height - textLayoutResult.size.height - 2.dp.toPx())
         )
     }
 
