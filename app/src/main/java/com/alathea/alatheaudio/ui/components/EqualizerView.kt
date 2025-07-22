@@ -24,8 +24,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.alathea.alatheaudio.model.EqMode
-import com.yourdomain.audioplayer.model.EqPreset
-import com.yourdomain.audioplayer.model.ParametricBand
+import com.alathea.alatheaudio.model.EqPreset
+import com.alathea.alatheaudio.model.ParametricBand
 import com.alathea.alatheaudio.ui.theme.Skin
 import com.alathea.alatheaudio.viewmodel.EqualizerViewModel
 import kotlin.math.log10
