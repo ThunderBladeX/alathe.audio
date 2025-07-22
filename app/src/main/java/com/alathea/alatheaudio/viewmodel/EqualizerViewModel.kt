@@ -8,8 +8,7 @@ import com.alathea.alatheaudio.model.EqMode
 import com.alathea.alatheaudio.model.EqPreset
 import com.alathea.alatheaudio.model.ParametricBand
 import com.alathea.alatheaudio.model.PresetData
-// Assuming a repository for persisting presets, which would be part of your media-scanner module.
-// import com.alathea.alatheaudio.repository.PresetRepository
+import com.alathea.alatheaudio.repository.PresetRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
