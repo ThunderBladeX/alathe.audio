@@ -85,7 +85,7 @@ class EqualizerViewModel @Inject constructor(
                 q = q
             )
             _parametricBands.value = currentBands
-            _currentPreset.value = null // Mark as custom
+            _currentPreset.value = null
             calculateFrequencyResponse()
         }
     }
@@ -100,7 +100,7 @@ class EqualizerViewModel @Inject constructor(
         if (index in currentBands.indices) {
             currentBands[index] = gain
             _graphicBands.value = currentBands
-            _currentPreset.value = null // Mark as custom
+            _currentPreset.value = null
             calculateFrequencyResponse()
             applyEqualizerSettings()
         }
@@ -172,7 +172,6 @@ class EqualizerViewModel @Inject constructor(
     }
 
     private fun createDefaultGraphicBands(): List<Float> {
-        // 10-band graphic EQ, all gains at 0dB
         return List(10) { 0f }
     }
 
