@@ -1,6 +1,7 @@
 package com.alathea.alatheaudio.model
 
 data class ParametricBand(
+    val id: Int,
     val frequency: Float,
     val gain: Float,
     val q: Float
