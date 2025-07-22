@@ -191,8 +191,7 @@ fun ParametricEqualizerView(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(bands.size, key = { index -> bands[index].hashCode() }) { index ->
-            val band = bands[index]
+        items(bands, key = { band -> band.id }) { band ->
             ParametricBandControl(
                 bandIndex = index,
                 band = band,
