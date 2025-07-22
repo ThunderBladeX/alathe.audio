@@ -571,12 +571,18 @@ fun EqualizerAdvancedControls(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceAround
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { viewModel.setShowFrequencyResponse(!showFrequencyResponse) }) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.clickable(
+                role = Role.Checkbox,
+                onClick = { viewModel.setShowFrequencyResponse(!showFrequencyResponse) }
+            )
             Checkbox(
                 checked = showFrequencyResponse,
-                onCheckedChange = { viewModel.setShowFrequencyResponse(it) },
+                onCheckedChange = null,
                 colors = CheckboxDefaults.colors(checkedColor = skin.accentColor)
             )
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = "Show Curve",
                 color = skin.primaryTextColor,
