@@ -637,9 +637,14 @@ data class ParametricBand(
     val q: Float
 )
 
+sealed class PresetData {
+    data class Graphic(val gains: List<Float>) : PresetData()
+    data class Parametric(val bands: List<ParametricBand>) : PresetData()
+}
+
 data class EqPreset(
     val name: String,
-    val bands: List<Float>
+    val data: PresetData
 )
 
 enum class EqMode {
