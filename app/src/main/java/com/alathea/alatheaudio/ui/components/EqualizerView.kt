@@ -210,9 +210,18 @@ fun ParametricBandControl(
     band: ParametricBand,
     skin: Skin,
     isEnabled: Boolean,
-    onBandChanged: (Int, Float, Float, Float) -> Unit,
     onBandChangeFinished: (Int, Float, Float, Float) -> Unit,
 ) {
+    var freq by remember { mutableStateOf(band.frequency) }
+    var gain by remember { mutableStateOf(band.gain) }
+    var q by remember { mutableStateOf(band.q) }
+
+    LaunchedEffect(band) {
+        freq = band.frequency
+        gain = band.gain
+        q = band.q
+    }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
@@ -229,45 +238,44 @@ fun ParametricBandControl(
             Spacer(Modifier.height(4.dp))
             BandSlider(
                 label = "Freq",
-                value = log10(band.frequency),
+                value = log10(freq),
                 valueText = "${band.frequency.toInt()} Hz",
                 valueRange = log10(MIN_FREQ_HZ)..log10(MAX_FREQ_HZ),
                 enabled = isEnabled,
                 skin = skin,
                 onValueChange = { logFreq ->
-                    val newFreq = 10f.pow(logFreq)
-                    onBandChanged(bandIndex, newFreq, band.gain, band.q)
+                    freq = 10f.pow(logFreq)
                 },
                 onValueChangeFinished = {
-                    onBandChangeFinished(bandIndex, band.frequency, band.gain, band.q)
+                    onBandChangeFinished(bandIndex, freq, gain, q)
                 }
             )
             BandSlider(
                 label = "Gain",
-                value = band.gain,
+                value = gain,
                 valueText = "${band.gain.format(1)} dB",
                 valueRange = MIN_GAIN..MAX_GAIN,
                 enabled = isEnabled,
                 skin = skin,
                 onValueChange = { newGain ->
-                    onBandChanged(bandIndex, band.frequency, newGain, band.q)
+                    gain = newGain
                 },
                 onValueChangeFinished = {
-                    onBandChangeFinished(bandIndex, band.frequency, band.gain, band.q)
+                    onBandChangeFinished(bandIndex, freq, gain, q)
                 }
             )
             BandSlider(
                 label = "Q",
-                value = band.q,
-                valueText = band.q.format(2),
+                value = q,
+                valueText = q.format(2),
                 valueRange = 0.1f..10f,
                 enabled = isEnabled,
                 skin = skin,
                 onValueChange = { newQ ->
-                    onBandChanged(bandIndex, band.frequency, band.gain, newQ)
+                    q = newQ
                 },
                 onValueChangeFinished = {
-                    onBandChangeFinished(bandIndex, band.frequency, band.gain, band.q)
+                    onBandChangeFinished(bandIndex, freq, gain, q)
                 }
             )
         }
