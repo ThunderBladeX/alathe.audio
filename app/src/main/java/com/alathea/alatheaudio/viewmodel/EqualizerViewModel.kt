@@ -57,6 +57,8 @@ class EqualizerViewModel @Inject constructor(
         const val RESPONSE_POINTS = 200
         const val MIN_GAIN = -15f
         const val MAX_GAIN = 15f
+        const val SAMPLE_RATE = 48000f
+        const val PI = kotlin.math.PI
     }
 
     init {
@@ -238,16 +240,27 @@ class EqualizerViewModel @Inject constructor(
     }
 
     private fun calculateParametricResponse(frequency: Float, bands: List<ParametricBand>): Float {
-        // ⚠️ This is a simplified sum of filter responses. The real response is more complex.
         return bands.sumOf { band ->
-            val w0 = 2 * PI.toFloat() * band.frequency
-            val alpha = sin(w0) / (2 * band.q) // simplified alpha
+            val w0 = 2 * PI.toFloat() * frequency / SAMPLE_RATE
+            val alpha = sin(w0) / (2 * band.q)
             val A = 10f.pow(band.gain / 40f)
 
-            // ⚠️ This is a simplification. A full calculation is complex.
-            val ratio = frequency / band.frequency
-            val value = 1 + (A * A - 1) / (1 + (band.q * (ratio - 1 / ratio)).pow(2))
-            20 * log10(sqrt(value))
+            val b0 = 1 + alpha * A
+            val b1 = -2 * cos(w0)
+            val b2 = 1 - alpha * A
+            val a0 = 1 + alpha / A
+            val a1 = -2 * cos(w0)
+            val a2 = 1 - alpha / A
+
+            val numerator = hypot(
+                b0 * cos(0f) + b1 * cos(-w0) + b2 * cos(-2 * w0),
+                b0 * sin(0f) + b1 * sin(-w0) + b2 * sin(-2 * w0)
+            )
+            val denominator = hypot(
+                a0 * cos(0f) + a1 * cos(-w0) + a2 * cos(-2 * w0),
+                a0 * sin(0f) + a1 * sin(-w0) + a2 * sin(-2 * w0)
+            )
+            20 * log10(numerator / denominator)
         }.toFloat()
     }
 
@@ -275,22 +288,39 @@ class EqualizerViewModel @Inject constructor(
     }
 
     private fun applyAutoGainCompensation() {
-        // ⚠️ This is a simple heuristic. A better implementation might analyze the total power.
         if (!_autoGainCompensation.value) return
 
         when (_eqMode.value) {
             EqMode.PARAMETRIC -> {
-                val positiveGain = _parametricBands.value.filter { it.gain > 0 }.sumOf { it.gain.toDouble() }
-                if (positiveGain > 0) {
-                    val compensation = - (positiveGain / _parametricBands.value.size).toFloat()
-                    _parametricBands.value = _parametricBands.value.map { it.copy(gain = it.gain + compensation) }
+                var totalPowerGain = 0.0
+                val frequencyPoints = 1000
+            
+                for (i in 0 until frequencyPoints) {
+                    val freq = MIN_FREQ_HZ * (MAX_FREQ_HZ / MIN_FREQ_HZ).pow(i.toFloat() / frequencyPoints)
+                    val response = calculateParametricResponse(freq, _parametricBands.value)
+                    totalPowerGain += 10.0.pow(response / 10.0) * (1.0 / frequencyPoints)
+                }
+
+                val compensationDB = -10 * log10(totalPowerGain).toFloat()
+
+                _parametricBands.value = _parametricBands.value.map { band ->
+                    band.copy(gain = band.gain + compensationDB)
                 }
             }
+        
             EqMode.GRAPHIC -> {
-                val positiveGain = _graphicBands.value.filter { it > 0 }.sumOf { it.toDouble() }
-                if (positiveGain > 0) {
-                    val compensation = - (positiveGain / _graphicBands.value.size).toFloat()
-                    _graphicBands.value = _graphicBands.value.map { it + compensation }
+                var totalPowerGain = 0.0
+                val frequencyPoints = 1000
+            
+                for (i in 0 until frequencyPoints) {
+                    val freq = MIN_FREQ_HZ * (MAX_FREQ_HZ / MIN_FREQ_HZ).pow(i.toFloat() / frequencyPoints)
+                    val response = calculateGraphicResponse(freq, _graphicBands.value)
+                    totalPowerGain += 10.0.pow(response / 10.0) * (1.0 / frequencyPoints)
+                }
+
+                val compensationDB = -10 * log10(totalPowerGain).toFloat()
+                _graphicBands.value = _graphicBands.value.map { gain ->
+                    gain + compensationDB
                 }
             }
         }
