@@ -21,6 +21,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alathea.alatheaudio.ui.theme.Skin
@@ -361,6 +362,7 @@ fun GraphicEqualizerView(
                 }
             }
     ) {
+        val textMeasurer = TextMeasurer(this)
         drawGraphicEqualizer(bands, skin, isEnabled)
     }
 }
@@ -369,10 +371,22 @@ fun DrawScope.drawGraphicEqualizer(
     bands: List<Float>,
     skin: Skin,
     isEnabled: Boolean
+    textMeasurer: TextMeasurer
 ) {
     val bandWidth = size.width / bands.size
     val centerY = size.height / 2
     val maxGain = 15f
+
+    val frequencyLabelStyle = TextStyle(
+        color = if (isEnabled) skin.secondaryTextColor else skin.disabledTextColor,
+        fontSize = 12.sp,
+        textAlign = TextAlign.Center
+    )
+    val gainLabelStyle = TextStyle(
+        color = if (isEnabled) skin.primaryTextColor else skin.disabledTextColor,
+        fontSize = 10.sp,
+        textAlign = TextAlign.Center
+    )
 
     bands.forEachIndexed { index, gain ->
         val x = bandWidth * (index + 0.5f)
@@ -382,15 +396,15 @@ fun DrawScope.drawGraphicEqualizer(
             else -> "${(frequency / 1000).format(1)}k"
         }
 
-        drawContext.canvas.nativeCanvas.drawText(
-            label,
-            x,
-            size.height - 10f,
-            android.graphics.Paint().apply {
-                color = if (isEnabled) skin.secondaryTextColor.toArgb() else skin.disabledTextColor.toArgb()
-                textSize = 24f
-                textAlign = android.graphics.Paint.Align.CENTER
-            }
+        val textLayoutResult = textMeasurer.measure(
+            text = label,
+            style = frequencyLabelStyle
+        )
+
+        drawText(
+            textLayoutResult = textLayoutResult,
+            topLeft = Offset(x - textLayoutResult.size.width / 2, size.height - textLayoutResult.size.height - 2.dp.toPx()),
+            color = if (isEnabled) skin.secondaryTextColor else skin.disabledTextColor
         )
     }
 
@@ -414,15 +428,19 @@ fun DrawScope.drawGraphicEqualizer(
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
         )
 
-        drawContext.canvas.nativeCanvas.drawText(
-            "${gain.format(1)}",
-            x + barWidth / 2,
-            if (gain >= 0) barTop - 5f else barTop + actualBarHeight + 20f,
-            android.graphics.Paint().apply {
-                color = if (isEnabled) skin.primaryTextColor.toArgb() else skin.disabledTextColor.toArgb()
-                textSize = 20f
-                textAlign = android.graphics.Paint.Align.CENTER
-            }
+        val gainLabel = "${gain.format(1)}"
+        val textLayoutResult = textMeasurer.measure(
+            text = gainLabel,
+            style = gainLabelStyle
+        )
+
+       drawText(
+            textLayoutResult = textLayoutResult,
+            topLeft = Offset(
+                x + barWidth / 2 - textLayoutResult.size.width / 2,
+                if (gain >= 0) barTop - textLayoutResult.size.height - 2.dp.toPx() else barTop + actualBarHeight + 2.dp.toPx()
+            ),
+            color = if (isEnabled) skin.primaryTextColor else skin.disabledTextColor
         )
     }
 
