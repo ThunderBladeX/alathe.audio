@@ -25,6 +25,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.alathea.alatheaudio.model.EqMode
 import com.alathea.alatheaudio.ui.theme.Skin
 import com.alathea.alatheaudio.viewmodel.EqualizerViewModel
 import kotlinx.coroutines.flow.debounce
