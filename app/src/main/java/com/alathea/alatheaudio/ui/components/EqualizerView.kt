@@ -3,40 +3,44 @@ package com.alathea.alatheaudio.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Save
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.*
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.alathea.alatheaudio.model.EqMode
+import com.yourdomain.audioplayer.model.EqPreset
+import com.yourdomain.audioplayer.model.ParametricBand
 import com.alathea.alatheaudio.ui.theme.Skin
 import com.alathea.alatheaudio.viewmodel.EqualizerViewModel
-import kotlinx.coroutines.flow.debounce
-import kotlin.math.*
+import kotlin.math.log10
+import kotlin.math.pow
+
+private const val MIN_GAIN = -15f
+private const val MAX_GAIN = 15f
+private const val MIN_FREQ_HZ = 20f
+private const val MAX_FREQ_HZ = 20000f
 
 @Composable
 fun EqualizerView(
     viewModel: EqualizerViewModel,
     skin: Skin,
-    modifier: Modifier = Modifier,
-    onBandChanged: (Int, Float, Float, Float) -> Unit = { _, _, _, _ -> }
+    modifier: Modifier = Modifier
 ) {
     val eqMode by viewModel.eqMode.collectAsState()
     val isEnabled by viewModel.isEnabled.collectAsState()
@@ -44,16 +48,8 @@ fun EqualizerView(
     val graphicBands by viewModel.graphicBands.collectAsState()
     val presets by viewModel.presets.collectAsState()
     val currentPreset by viewModel.currentPreset.collectAsState()
+    val frequencyResponsePoints by viewModel.frequencyResponsePoints.collectAsState()
     val showFrequencyResponse by viewModel.showFrequencyResponse.collectAsState()
-    val curveBands = remember(eqMode, parametricBands, graphicBands) {
-        if (eqMode == EqMode.PARAMETRIC) {
-            parametricBands
-        } else {
-            graphicBands.mapIndexed { index, gain ->
-                ParametricBand(getGraphicEqFrequency(index), gain, 1.41f)
-            }
-        }
-    }
 
     Column(
         modifier = modifier
@@ -83,13 +79,12 @@ fun EqualizerView(
 
         if (showFrequencyResponse) {
             FrequencyResponseCurve(
-                bands = curveBands,
+                points = frequencyResponsePoints,
                 skin = skin,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(120.dp)
             )
-            
             Spacer(modifier = Modifier.height(16.dp))
         }
 
@@ -101,7 +96,9 @@ fun EqualizerView(
                     isEnabled = isEnabled,
                     onBandChanged = { index, freq, gain, q ->
                         viewModel.updateParametricBand(index, freq, gain, q)
-                        onBandChanged(index, freq, gain, q)
+                    },
+                    onBandChangeFinished = { index, freq, gain, q ->
+                        viewModel.onParametricBandChangeFinished(index, freq, gain, q)
                     },
                     modifier = Modifier.weight(1f)
                 )
@@ -113,7 +110,6 @@ fun EqualizerView(
                     isEnabled = isEnabled,
                     onBandChanged = { index, gain ->
                         viewModel.updateGraphicBand(index, gain)
-                        onBandChanged(index, getGraphicEqFrequency(index), gain, 1.0f)
                     },
                     modifier = Modifier.weight(1f)
                 )
@@ -148,7 +144,9 @@ fun EqualizerHeader(
                 onCheckedChange = onToggleEnabled,
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = skin.accentColor,
-                    checkedTrackColor = skin.accentColor.copy(alpha = 0.5f)
+                    checkedTrackColor = skin.accentColor.copy(alpha = 0.5f),
+                    uncheckedThumbColor = skin.secondaryTextColor,
+                    uncheckedTrackColor = skin.secondaryTextColor.copy(alpha = 0.3f)
                 )
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -160,14 +158,23 @@ fun EqualizerHeader(
             )
         }
 
-        SegmentedControl(
-            options = listOf("PARAMETRIC", "GRAPHIC"),
-            selectedOption = eqMode.name,
-            onOptionSelected = { 
-                onModeChanged(if (it == "PARAMETRIC") EqMode.PARAMETRIC else EqMode.GRAPHIC)
-            },
-            skin = skin
-        )
+        TabRow(
+            selectedTabIndex = if (eqMode == EqMode.PARAMETRIC) 0 else 1,
+            containerColor = skin.surfaceColor,
+            contentColor = skin.accentColor,
+            modifier = Modifier.width(200.dp)
+        ) {
+            Tab(
+                selected = eqMode == EqMode.PARAMETRIC,
+                onClick = { onModeChanged(EqMode.PARAMETRIC) },
+                text = { Text("Parametric") }
+            )
+            Tab(
+                selected = eqMode == EqMode.GRAPHIC,
+                onClick = { onModeChanged(EqMode.GRAPHIC) },
+                text = { Text("Graphic") }
+            )
+        }
     }
 }
 
@@ -177,21 +184,23 @@ fun ParametricEqualizerView(
     skin: Skin,
     isEnabled: Boolean,
     onBandChanged: (Int, Float, Float, Float) -> Unit,
+    onBandChangeFinished: (Int, Float, Float, Float) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(modifier = modifier) {
-        items(bands.size) { index ->
+    LazyColumn(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        items(bands.size, key = { index -> bands[index].hashCode() }) { index ->
             val band = bands[index]
             ParametricBandControl(
                 bandIndex = index,
                 band = band,
                 skin = skin,
                 isEnabled = isEnabled,
-                onBandChanged = onBandChanged
+                onBandChanged = onBandChanged,
+                onBandChangeFinished = onBandChangeFinished
             )
-            if (index < bands.size - 1) {
-                Spacer(modifier = Modifier.height(12.dp))
-            }
         }
     }
 }
@@ -202,144 +211,114 @@ fun ParametricBandControl(
     band: ParametricBand,
     skin: Skin,
     isEnabled: Boolean,
-    onBandChanged: (Int, Float, Float, Float) -> Unit
+    onBandChanged: (Int, Float, Float, Float) -> Unit,
+    onBandChangeFinished: (Int, Float, Float, Float) -> Unit,
 ) {
-    var frequency by remember { mutableFloatStateOf(band.frequency) }
-    var gain by remember { mutableFloatStateOf(band.gain) }
-    var q by remember { mutableFloatStateOf(band.q) }
-
-    LaunchedEffect(band) {
-        frequency = band.frequency
-        gain = band.gain
-        q = band.q
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
             containerColor = skin.surfaceColor.copy(alpha = if (isEnabled) 1f else 0.5f)
         )
     ) {
-        Column(
-            modifier = Modifier.padding(16.dp)
-        ) {
+        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
             Text(
                 text = "Band ${bandIndex + 1}",
                 color = skin.primaryTextColor,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
             )
-            
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Freq:",
-                    color = skin.secondaryTextColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(40.dp)
-                )
-                Slider(
-                    value = log10(frequency),
-                    onValueChange = { logFreq ->
-                        frequency = 10f.pow(logFreq)
-                    },
-                    onValueChangeFinished = {
-                        onBandChanged(bandIndex, frequency, gain, q)
-                    },
-                    valueRange = log10(20f)..log10(20000f),
-                    enabled = isEnabled,
-                    colors = SliderDefaults.colors(
-                        thumbColor = skin.accentColor,
-                        activeTrackColor = skin.accentColor
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "${frequency.toInt()}Hz",
-                    color = skin.primaryTextColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(60.dp),
-                    textAlign = TextAlign.End
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Gain:",
-                    color = skin.secondaryTextColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(40.dp)
-                )
-                Slider(
-                    value = gain,
-                    onValueChange = { newGain ->
-                        gain = newGain
-                    },
-                    onValueChangeFinished = {
-                        onBandChanged(bandIndex, frequency, gain, q)
-                    },
-                    valueRange = -15f..15f,
-                    enabled = isEnabled,
-                    colors = SliderDefaults.colors(
-                        thumbColor = skin.accentColor,
-                        activeTrackColor = skin.accentColor
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "${gain.format(1)}dB",
-                    color = skin.primaryTextColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(60.dp),
-                    textAlign = TextAlign.End
-                )
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Q:",
-                    color = skin.secondaryTextColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(40.dp)
-                )
-                Slider(
-                    value = q,
-                    onValueChange = { newQ ->
-                        q = newQ
-                    },
-                    onValueChangeFinished = {
-                        onBandChanged(bandIndex, frequency, gain, q)
-                    },
-                    valueRange = 0.1f..10f,
-                    enabled = isEnabled,
-                    colors = SliderDefaults.colors(
-                        thumbColor = skin.accentColor,
-                        activeTrackColor = skin.accentColor
-                    ),
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = q.format(2),
-                    color = skin.primaryTextColor,
-                    fontSize = 12.sp,
-                    modifier = Modifier.width(60.dp),
-                    textAlign = TextAlign.End
-                )
-            }
+            Spacer(Modifier.height(4.dp))
+            BandSlider(
+                label = "Freq",
+                value = log10(band.frequency),
+                valueText = "${band.frequency.toInt()} Hz",
+                valueRange = log10(MIN_FREQ_HZ)..log10(MAX_FREQ_HZ),
+                enabled = isEnabled,
+                skin = skin,
+                onValueChange = { logFreq ->
+                    val newFreq = 10f.pow(logFreq)
+                    onBandChanged(bandIndex, newFreq, band.gain, band.q)
+                },
+                onValueChangeFinished = {
+                    onBandChangeFinished(bandIndex, band.frequency, band.gain, band.q)
+                }
+            )
+            BandSlider(
+                label = "Gain",
+                value = band.gain,
+                valueText = "${band.gain.format(1)} dB",
+                valueRange = MIN_GAIN..MAX_GAIN,
+                enabled = isEnabled,
+                skin = skin,
+                onValueChange = { newGain ->
+                    onBandChanged(bandIndex, band.frequency, newGain, band.q)
+                },
+                onValueChangeFinished = {
+                    onBandChangeFinished(bandIndex, band.frequency, band.gain, band.q)
+                }
+            )
+            BandSlider(
+                label = "Q",
+                value = band.q,
+                valueText = band.q.format(2),
+                valueRange = 0.1f..10f,
+                enabled = isEnabled,
+                skin = skin,
+                onValueChange = { newQ ->
+                    onBandChanged(bandIndex, band.frequency, band.gain, newQ)
+                },
+                onValueChangeFinished = {
+                    onBandChangeFinished(bandIndex, band.frequency, band.gain, band.q)
+                }
+            )
         }
     }
 }
 
+@Composable
+private fun BandSlider(
+    label: String,
+    value: Float,
+    valueText: String,
+    valueRange: ClosedFloatingPointRange<Float>,
+    enabled: Boolean,
+    skin: Skin,
+    onValueChange: (Float) -> Unit,
+    onValueChangeFinished: () -> Unit
+) {
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.height(32.dp)) {
+        Text(
+            text = label,
+            color = if (enabled) skin.secondaryTextColor else skin.disabledTextColor,
+            fontSize = 12.sp,
+            modifier = Modifier.width(40.dp)
+        )
+        Slider(
+            value = value,
+            onValueChange = onValueChange,
+            onValueChangeFinished = onValueChangeFinished,
+            valueRange = valueRange,
+            enabled = enabled,
+            colors = SliderDefaults.colors(
+                thumbColor = skin.accentColor,
+                activeTrackColor = skin.accentColor,
+                inactiveTrackColor = skin.secondaryTextColor.copy(alpha = 0.3f),
+                disabledThumbColor = skin.disabledTextColor,
+                disabledActiveTrackColor = skin.disabledTextColor,
+            ),
+            modifier = Modifier.weight(1f)
+        )
+        Text(
+            text = valueText,
+            color = if (enabled) skin.primaryTextColor else skin.disabledTextColor,
+            fontSize = 12.sp,
+            modifier = Modifier.width(64.dp),
+            textAlign = TextAlign.End
+        )
+    }
+}
+
+@OptIn(ExperimentalTextApi::class)
 @Composable
 fun GraphicEqualizerView(
     bands: List<Float>,
@@ -349,169 +328,127 @@ fun GraphicEqualizerView(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
-    val density = LocalDensity.current
-    
+
+    val rememberedOnBandChanged by rememberUpdatedState(onBandChanged)
+
+    val frequencyLabelStyle = remember(skin, isEnabled) {
+        TextStyle(
+            color = if (isEnabled) skin.secondaryTextColor else skin.disabledTextColor,
+            fontSize = 10.sp,
+            textAlign = TextAlign.Center
+        )
+    }
+
     Canvas(
         modifier = modifier
             .fillMaxSize()
-            .pointerInput(bands, onBandChanged) {
+            .pointerInput(isEnabled) { 
+                if (!isEnabled) return@pointerInput
+
                 detectDragGestures { change, _ ->
                     val x = change.position.x
                     val y = change.position.y
                     val bandWidth = size.width / bands.size.toFloat()
                     val bandIndex = (x / bandWidth).toInt().coerceIn(0, bands.size - 1)
 
-                    val gain = ((1f - y / size.height) * 30f - 15f).coerceIn(-15f, 15f)
-                    onBandChanged(bandIndex, gain)
+                    val gain = ((1f - (y / size.height)) * (MAX_GAIN - MIN_GAIN) + MIN_GAIN)
+                        .coerceIn(MIN_GAIN, MAX_GAIN)
+
+                    rememberedOnBandChanged(bandIndex, gain)
+                    change.consume()
                 }
             }
     ) {
-        drawGraphicEqualizer(bands, skin, isEnabled, textMeasurer)
+        drawGraphicEqualizer(bands, skin, isEnabled, textMeasurer, frequencyLabelStyle)
     }
 }
 
-fun DrawScope.drawGraphicEqualizer(
+@OptIn(ExperimentalTextApi::class)
+private fun DrawScope.drawGraphicEqualizer(
     bands: List<Float>,
     skin: Skin,
-    isEnabled: Boolean
-    textMeasurer: TextMeasurer
+    isEnabled: Boolean,
+    textMeasurer: TextMeasurer,
+    frequencyLabelStyle: TextStyle
 ) {
-    val bandWidth = size.width / bands.size
-    val centerY = size.height / 2
-    val maxGain = 15f
+    val bandCount = bands.size
+    if (bandCount == 0) return
 
-    val frequencyLabelStyle = TextStyle(
-        color = if (isEnabled) skin.secondaryTextColor else skin.disabledTextColor,
-        fontSize = 12.sp,
-        textAlign = TextAlign.Center
-    )
-    val gainLabelStyle = TextStyle(
-        color = if (isEnabled) skin.primaryTextColor else skin.disabledTextColor,
-        fontSize = 10.sp,
-        textAlign = TextAlign.Center
-    )
-    val textLayoutResult = textMeasurer.measure(
-        text = label,
-        style = frequencyLabelStyle
-    )
-
-    bands.forEachIndexed { index, gain ->
-        val x = bandWidth * (index + 0.5f)
-        val frequency = getGraphicEqFrequency(index)
-        val label = when {
-            frequency < 1000 -> "${frequency.toInt()}"
-            else -> "${(frequency / 1000).format(1)}k"
-        }
-
-        drawText(
-            textLayoutResult = textLayoutResult,
-            topLeft = Offset(x - textLayoutResult.size.width / 2, size.height - textLayoutResult.size.height - 2.dp.toPx())
-        )
-    }
-
-    bands.forEachIndexed { index, gain ->
-        val x = bandWidth * index + bandWidth * 0.1f
-        val barWidth = bandWidth * 0.8f
-        val barHeight = (gain / maxGain) * (size.height * 0.4f)
-        val barTop = if (barHeight >= 0) centerY - barHeight else centerY
-        val actualBarHeight = abs(barHeight)
-        
-        val color = if (isEnabled) {
-            if (gain >= 0) skin.accentColor else skin.accentColor.copy(red = 1f, green = 0.3f, blue = 0.3f)
-        } else {
-            skin.disabledTextColor
-        }
-        
-        drawRoundRect(
-            color = color,
-            topLeft = Offset(x, barTop),
-            size = Size(barWidth, actualBarHeight),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(4f)
-        )
-
-        val gainLabel = "${gain.format(1)}"
-        val textLayoutResult = textMeasurer.measure(
-            text = gainLabel,
-            style = gainLabelStyle
-        )
-
-       drawText(
-            textLayoutResult = textLayoutResult,
-            topLeft = Offset(
-                x + barWidth / 2 - textLayoutResult.size.width / 2,
-                if (gain >= 0) barTop - textLayoutResult.size.height - 2.dp.toPx() else barTop + actualBarHeight + 2.dp.toPx()
-            ),
-            color = if (isEnabled) skin.primaryTextColor else skin.disabledTextColor
-        )
-    }
+    val bandWidth = size.width / bandCount
+    val centerY = size.height / 2f
 
     drawLine(
         color = skin.secondaryTextColor.copy(alpha = 0.5f),
         start = Offset(0f, centerY),
         end = Offset(size.width, centerY),
-        strokeWidth = 2f
+        strokeWidth = 1.dp.toPx()
     )
+
+    bands.forEachIndexed { index, gain ->
+        val barCenterX = bandWidth * (index + 0.5f)
+        val sliderWidth = bandWidth * 0.6f
+
+        val barTopY = centerY - (gain / MAX_GAIN) * centerY
+
+        val color = if (isEnabled) skin.accentColor else skin.disabledTextColor
+
+        drawLine(
+            color = color.copy(alpha = 0.3f),
+            start = Offset(barCenterX, 0f),
+            end = Offset(barCenterX, size.height),
+            strokeWidth = 1.dp.toPx()
+        )
+
+        drawCircle(
+            color = color,
+            radius = sliderWidth / 2,
+            center = Offset(barCenterX, barTopY)
+        )
+
+        val frequency = getGraphicEqFrequency(index)
+        val freqLabel = if (frequency < 1000) "${frequency.toInt()}" else "${(frequency / 1000f).format(1)}k"
+
+        val measuredText = textMeasurer.measure(AnnotatedString(freqLabel), style = frequencyLabelStyle)
+        drawText(
+            textLayoutResult = measuredText,
+            topLeft = Offset(barCenterX - measuredText.size.width / 2, size.height - measuredText.size.height)
+        )
+    }
 }
 
 @Composable
 fun FrequencyResponseCurve(
-    bands: List<ParametricBand>,
+    points: List<Offset>,
     skin: Skin,
     modifier: Modifier = Modifier
 ) {
-    Canvas(modifier = modifier) {
-        drawFrequencyResponse(bands, skin)
-    }
-}
+    Canvas(modifier = modifier.clip(androidx.compose.foundation.shape.RoundedCornerShape(4.dp))) {
 
-fun DrawScope.drawFrequencyResponse(
-    bands: List<ParametricBand>,
-    skin: Skin
-    sampleRate: Float
-) {
-    val path = Path()
-    val points = mutableListOf<Offset>()
+        for (db in listOf(-12, -6, 0, 6, 12)) {
 
-    for (i in 0..size.width.toInt() step 2) {
-        val frequency = 20f * (20000f / 20f).pow(i / size.width)
-        var totalMagnitude = 1.0f
-        
-        bands.forEach { band ->
-            val bandMagnitude = calculateAccurateMagnitude(
-                freqToTest = freqToTest,
-                centerFreq = band.frequency,
-                gainDb = band.gain,
-                q = band.q,
-                sampleRate = sampleRate
+            val y = (size.height / 2f) - (db / MAX_GAIN) * (size.height / 2f)
+            drawLine(
+                color = skin.secondaryTextColor.copy(alpha = if (db == 0) 0.4f else 0.2f),
+                start = Offset(0f, y),
+                end = Offset(size.width, y),
+                strokeWidth = 1.dp.toPx(),
+                pathEffect = if (db != 0) PathEffect.dashPathEffect(floatArrayOf(10f, 10f), 0f) else null
             )
-            totalMagnitude *= bandMagnitude
         }
 
-        val totalGainDb = 20f * log10(totalMagnitude.coerceAtLeast(0.0001f))
-        val y = size.height / 2 - (totalGainDb / 15f) * (size.height / 2f)
-        points.add(Offset(i.toFloat(), y.coerceIn(0f, size.height)))
-    }
+        if (points.size < 2) return@Canvas
 
-    if (points.isNotEmpty()) {
-        path.moveTo(points[0].x, points[0].y)
-        points.forEach { point ->
-            path.lineTo(point.x, point.y)
+        val path = Path().apply {
+
+            moveTo(points.first().x * size.width, points.first().y * size.height)
+            for (i in 1 until points.size) {
+                lineTo(points[i].x * size.width, points[i].y * size.height)
+            }
         }
-        
         drawPath(
             path = path,
             color = skin.accentColor,
-            style = Stroke(width = 3f, cap = StrokeCap.Round)
-        )
-    }
-
-    for (i in -15..15 step 5) {
-        val y = size.height / 2 - (i / 30f) * size.height * 0.4f
-        drawLine(
-            color = skin.secondaryTextColor.copy(alpha = 0.2f),
-            start = Offset(0f, y),
-            end = Offset(size.width, y),
-            strokeWidth = 1f
+            style = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
         )
     }
 }
@@ -525,7 +462,7 @@ fun EqualizerPresets(
     onSavePreset: (String) -> Unit
 ) {
     var showSaveDialog by remember { mutableStateOf(false) }
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -533,25 +470,26 @@ fun EqualizerPresets(
     ) {
         Box(modifier = Modifier.weight(1f)) {
             var expanded by remember { mutableStateOf(false) }
-            
+
             OutlinedButton(
                 onClick = { expanded = true },
-                colors = ButtonDefaults.outlinedButtonColors(
-                    contentColor = skin.primaryTextColor
-                ),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = skin.primaryTextColor),
+                border = BorderStroke(1.dp, skin.secondaryTextColor.copy(alpha = 0.5f)),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(currentPreset ?: "Select Preset")
-                Icon(Icons.Default.ArrowDropDown, contentDescription = "Expand")
+                Text(currentPreset ?: "Custom")
+                Spacer(Modifier.weight(1f))
+                Icon(Icons.Default.ArrowDropDown, contentDescription = "Expand Presets")
             }
-            
+
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false }
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.background(skin.surfaceColor)
             ) {
                 presets.forEach { preset ->
                     DropdownMenuItem(
-                        text = { Text(preset.name) },
+                        text = { Text(preset.name, color = skin.primaryTextColor) },
                         onClick = {
                             onPresetSelected(preset.name)
                             expanded = false
@@ -569,9 +507,10 @@ fun EqualizerPresets(
             )
         }
     }
-    
+
     if (showSaveDialog) {
         SavePresetDialog(
+            skin = skin,
             onSave = { name ->
                 onSavePreset(name)
                 showSaveDialog = false
@@ -582,31 +521,71 @@ fun EqualizerPresets(
 }
 
 @Composable
+fun SavePresetDialog(
+    skin: Skin,
+    onSave: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var text by remember { mutableStateOf("") }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = skin.surfaceColor)
+        ) {
+            Column(modifier = Modifier.padding(24.dp)) {
+                Text("Save Preset", style = MaterialTheme.typography.headlineSmall, color = skin.primaryTextColor)
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = text,
+                    onValueChange = { text = it },
+                    label = { Text("Preset Name") },
+                    singleLine = true
+                )
+                Spacer(Modifier.height(24.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Cancel", color = skin.secondaryTextColor)
+                    }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = { onSave(text) }, enabled = text.isNotBlank()) {
+                        Text("Save")
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun EqualizerAdvancedControls(
     viewModel: EqualizerViewModel,
     skin: Skin
 ) {
     val showFrequencyResponse by viewModel.showFrequencyResponse.collectAsState()
     val autoGainCompensation by viewModel.autoGainCompensation.collectAsState()
-    
+
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceAround
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { viewModel.setShowFrequencyResponse(!showFrequencyResponse) }) {
             Checkbox(
                 checked = showFrequencyResponse,
                 onCheckedChange = { viewModel.setShowFrequencyResponse(it) },
                 colors = CheckboxDefaults.colors(checkedColor = skin.accentColor)
             )
             Text(
-                text = "Show Response",
+                text = "Show Curve",
                 color = skin.primaryTextColor,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
         }
-        
-        Row(verticalAlignment = Alignment.CenterVertically) {
+
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { viewModel.setAutoGainCompensation(!autoGainCompensation) }) {
             Checkbox(
                 checked = autoGainCompensation,
                 onCheckedChange = { viewModel.setAutoGainCompensation(it) },
@@ -615,65 +594,16 @@ fun EqualizerAdvancedControls(
             Text(
                 text = "Auto Gain",
                 color = skin.primaryTextColor,
-                fontSize = 12.sp
+                fontSize = 14.sp
             )
         }
     }
 }
 
 private fun getGraphicEqFrequency(index: Int): Float {
-    val frequencies = listOf(32f, 64f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f)
+
+    val frequencies = listOf(31.25f, 62.5f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f)
     return frequencies.getOrElse(index) { 1000f }
 }
 
-private fun calculateAccurateMagnitude(
-    freqToTest: Float,
-    centerFreq: Float,
-    gainDb: Float,
-    q: Float,
-    sampleRate: Float = 48000f
-): Float {
-    val A = 10f.pow(gainDb / 40f)
-    val wc = 2f * PI.toFloat() * centerFreq / sampleRate
-    val cosWc = cos(wc)
-    val sinWc = sin(wc)
-    val alpha = sinWc / (2f * q)
-
-    val b0 = 1f + alpha * A
-    val b1 = -2f * cosWc
-    val b2 = 1f - alpha * A
-    val a0 = 1f + alpha / A
-    val a1 = -2f * cosWc
-    val a2 = 1f - alpha / A
-
-    val w = 2f * PI.toFloat() * freqToTest / sampleRate
-    val cosW = cos(w)
-
-    val num = (b0 * b0 + b1 * b1 + b2 * b2) + 2f * (b0 * b1 + b1 * b2) * cosW + 2f * b0 * b2 * (2f * cosW * cosW - 1f)
-    val den = (a0 * a0 + a1 * a1 + a2 * a2) + 2f * (a0 * a1 + a1 * a2) * cosW + 2f * a0 * a2 * (2f * cosW * cosW - 1f)
-
-    return if (den > 0) sqrt(num / den) else 1f
-}
-
 private fun Float.format(decimals: Int): String = "%.${decimals}f".format(this)
-
-data class ParametricBand(
-    val frequency: Float,
-    val gain: Float,
-    val q: Float
-)
-
-sealed class PresetData {
-    data class Graphic(val gains: List<Float>) : PresetData()
-    data class Parametric(val bands: List<ParametricBand>) : PresetData()
-}
-
-data class EqPreset(
-    val name: String,
-    val data: PresetData
-)
-
-enum class EqMode {
-    PARAMETRIC,
-    GRAPHIC
-}
