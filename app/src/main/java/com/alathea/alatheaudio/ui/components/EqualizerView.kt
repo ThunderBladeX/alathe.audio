@@ -191,7 +191,7 @@ fun ParametricEqualizerView(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(bands, key = { band -> band.id }) { band ->
+        itemsIndexed(bands, key = { _, band -> band.id }) { index, band ->
             ParametricBandControl(
                 bandIndex = index,
                 band = band,
@@ -573,10 +573,15 @@ fun EqualizerAdvancedControls(
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.clickable(
-                role = Role.Checkbox,
-                onClick = { viewModel.setShowFrequencyResponse(!showFrequencyResponse) }
-            )
+            modifier = Modifier
+                .clickable(
+                    role = Role.Checkbox,
+                    onClick = {
+                        viewModel.setShowFrequencyResponse(!showFrequencyResponse)
+                    }
+                )
+                .padding(vertical = 4.dp)
+        ) {
             Checkbox(
                 checked = showFrequencyResponse,
                 onCheckedChange = null,
@@ -590,12 +595,20 @@ fun EqualizerAdvancedControls(
             )
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable { viewModel.setAutoGainCompensation(!autoGainCompensation) }) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .clickable {
+                    viewModel.setAutoGainCompensation(!autoGainCompensation)
+                }
+                .padding(vertical = 4.dp)
+        ) {
             Checkbox(
                 checked = autoGainCompensation,
                 onCheckedChange = { viewModel.setAutoGainCompensation(it) },
                 colors = CheckboxDefaults.colors(checkedColor = skin.accentColor)
             )
+            Spacer(Modifier.width(6.dp))
             Text(
                 text = "Auto Gain",
                 color = skin.primaryTextColor,
