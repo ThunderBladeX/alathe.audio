@@ -464,6 +464,7 @@ fun FrequencyResponseCurve(
 fun DrawScope.drawFrequencyResponse(
     bands: List<ParametricBand>,
     skin: Skin
+    sampleRate: Float
 ) {
     val path = Path()
     val points = mutableListOf<Offset>()
@@ -473,7 +474,13 @@ fun DrawScope.drawFrequencyResponse(
         var totalMagnitude = 1.0f
         
         bands.forEach { band ->
-            val bandMagnitude = calculateAccurateMagnitude(frequency, band.frequency, band.gain, band.q)
+            val bandMagnitude = calculateAccurateMagnitude(
+                freqToTest = freqToTest,
+                centerFreq = band.frequency,
+                gainDb = band.gain,
+                q = band.q,
+                sampleRate = sampleRate
+            )
             totalMagnitude *= bandMagnitude
         }
 
@@ -616,17 +623,33 @@ private fun getGraphicEqFrequency(index: Int): Float {
     return frequencies.getOrElse(index) { 1000f }
 }
 
-private fun calculateBandResponse(frequency: Float, centerFreq: Float, gain: Float, q: Float): Float {
-    val ratio = frequency / centerFreq
-    val ratioSquared = ratio * ratio
-    val qSquared = q * q
-    
-    val magnitude = sqrt(
-        (1 + gain * qSquared * (ratioSquared - 1) / ratioSquared) /
-        (1 + qSquared * (ratioSquared - 1) / ratioSquared)
-    )
-    
-    return 20f * log10(magnitude)
+private fun calculateAccurateMagnitude(
+    freqToTest: Float,
+    centerFreq: Float,
+    gainDb: Float,
+    q: Float,
+    sampleRate: Float = 48000f
+): Float {
+    val A = 10f.pow(gainDb / 40f)
+    val wc = 2f * PI.toFloat() * centerFreq / sampleRate
+    val cosWc = cos(wc)
+    val sinWc = sin(wc)
+    val alpha = sinWc / (2f * q)
+
+    val b0 = 1f + alpha * A
+    val b1 = -2f * cosWc
+    val b2 = 1f - alpha * A
+    val a0 = 1f + alpha / A
+    val a1 = -2f * cosWc
+    val a2 = 1f - alpha / A
+
+    val w = 2f * PI.toFloat() * freqToTest / sampleRate
+    val cosW = cos(w)
+
+    val num = (b0 * b0 + b1 * b1 + b2 * b2) + 2f * (b0 * b1 + b1 * b2) * cosW + 2f * b0 * b2 * (2f * cosW * cosW - 1f)
+    val den = (a0 * a0 + a1 * a1 + a2 * a2) + 2f * (a0 * a1 + a1 * a2) * cosW + 2f * a0 * a2 * (2f * cosW * cosW - 1f)
+
+    return if (den > 0) sqrt(num / den) else 1f
 }
 
 private fun Float.format(decimals: Int): String = "%.${decimals}f".format(this)
