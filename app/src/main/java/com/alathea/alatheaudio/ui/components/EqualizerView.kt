@@ -3,6 +3,7 @@ package com.alathea.alatheaudio.ui.components
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alathea.alatheaudio.ui.theme.Skin
 import com.alathea.alatheaudio.viewmodel.EqualizerViewModel
+import kotlinx.coroutines.flow.debounce
 import kotlin.math.*
 
 @Composable
