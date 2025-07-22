@@ -335,8 +335,8 @@ fun GraphicEqualizerView(
     modifier: Modifier = Modifier
 ) {
     val textMeasurer = rememberTextMeasurer()
-
     val rememberedOnBandChanged by rememberUpdatedState(onBandChanged)
+    var draggedBandIndex by remember { mutableIntStateOf(-1) }
 
     val frequencyLabelStyle = remember(skin, isEnabled) {
         TextStyle(
@@ -352,17 +352,24 @@ fun GraphicEqualizerView(
             .pointerInput(isEnabled) { 
                 if (!isEnabled) return@pointerInput
 
-                detectDragGestures { change, _ ->
-                    val x = change.position.x
-                    val y = change.position.y
-                    val bandWidth = size.width / bands.size.toFloat()
-                    val bandIndex = (x / bandWidth).toInt().coerceIn(0, bands.size - 1)
+                detectDragGestures(
+                    onDragStart = { offset ->
+                        val bandWidth = size.width / bands.size.toFloat()
+                        draggedBandIndex = (offset.x / bandWidth).toInt().coerceIn(0, bands.size - 1)
+                    },
+                    onDragEnd = {
+                        draggedBandIndex = -1
+                    }
+                ) { change, _ ->
+                    if (draggedBandIndex >= 0) {
+                        val y = change.position.y
 
-                    val gain = ((1f - (y / size.height)) * (MAX_GAIN - MIN_GAIN) + MIN_GAIN)
-                        .coerceIn(MIN_GAIN, MAX_GAIN)
+                        val gain = ((1f - (y / size.height)) * (MAX_GAIN - MIN_GAIN) + MIN_GAIN)
+                            .coerceIn(MIN_GAIN, MAX_GAIN)
 
-                    rememberedOnBandChanged(bandIndex, gain)
-                    change.consume()
+                        rememberedOnBandChanged(draggedBandIndex, gain)
+                        change.consume()
+                    }
                 }
             }
     ) {
