@@ -38,13 +38,13 @@ class PresetRepository @Inject constructor(
                 description = "Enhanced clarity for orchestral music",
                 category = PresetCategory.GENRE,
                 parametricBands = listOf(
-                    ParametricBand(32f, 2.0f, 0.7f),    // Sub-bass roll-off
-                    ParametricBand(60f, 1.5f, 0.8f),    // Bass clarity
-                    ParametricBand(200f, -1.0f, 1.2f),  // Warmth reduction
-                    ParametricBand(1000f, 0.5f, 1.0f),  // Midrange presence
-                    ParametricBand(3000f, 1.0f, 0.9f),  // Vocal clarity
-                    ParametricBand(8000f, 2.0f, 0.8f),  // String brightness
-                    ParametricBand(16000f, 1.5f, 0.7f)  # Air and sparkle
+                    ParametricBand(32f, 2.0f, 0.7f),
+                    ParametricBand(60f, 1.5f, 0.8f),
+                    ParametricBand(200f, -1.0f, 1.2f),
+                    ParametricBand(1000f, 0.5f, 1.0f),
+                    ParametricBand(3000f, 1.0f, 0.9f),
+                    ParametricBand(8000f, 2.0f, 0.8f),
+                    ParametricBand(16000f, 1.5f, 0.7f)
                 ),
                 graphicBands = floatArrayOf(1.5f, 1.0f, 0.0f, 0.5f, 1.0f, 2.0f, 1.5f, 1.0f, 0.5f, 0.0f),
                 stereoExpansion = 0.3f,
@@ -58,13 +58,13 @@ class PresetRepository @Inject constructor(
                 description = "Punchy bass and crisp highs for electronic music",
                 category = PresetCategory.GENRE,
                 parametricBands = listOf(
-                    ParametricBand(40f, 4.0f, 0.8f),    // Sub-bass boost
-                    ParametricBand(80f, 3.0f, 1.0f),    // Bass punch
-                    ParametricBand(200f, 1.0f, 0.9f),   // Body
-                    ParametricBand(800f, -1.5f, 1.1f),  // Midrange scoop
-                    ParametricBand(2000f, -0.5f, 0.8f), // Vocal clarity
-                    ParametricBand(6000f, 2.5f, 0.9f),  # Synth brightness
-                    ParametricBand(12000f, 3.0f, 0.7f)  # Air and detail
+                    ParametricBand(40f, 4.0f, 0.8f),
+                    ParametricBand(80f, 3.0f, 1.0f),
+                    ParametricBand(200f, 1.0f, 0.9f),
+                    ParametricBand(800f, -1.5f, 1.1f),
+                    ParametricBand(2000f, -0.5f, 0.8f),
+                    ParametricBand(6000f, 2.5f, 0.9f),
+                    ParametricBand(12000f, 3.0f, 0.7f)
                 ),
                 graphicBands = floatArrayOf(4.0f, 3.0f, 1.0f, -1.0f, -0.5f, 1.0f, 2.5f, 3.0f, 2.0f, 1.0f),
                 stereoExpansion = 0.6f,
@@ -78,13 +78,13 @@ class PresetRepository @Inject constructor(
                 description = "Powerful mids and controlled bass for rock music",
                 category = PresetCategory.GENRE, 
                 parametricBands = listOf(
-                    ParametricBand(60f, 2.0f, 0.9f),    // Bass foundation
-                    ParametricBand(120f, 1.0f, 1.0f),   // Kick drum punch
-                    ParametricBand(400f, 2.5f, 1.2f),   // Guitar body
-                    ParametricBand(1200f, 3.0f, 1.1f),  // Guitar presence
-                    ParametricBand(2500f, 1.5f, 0.8f),  // Vocal cut
-                    ParametricBand(5000f, 2.0f, 0.9f),  // Cymbal attack
-                    ParametricBand(10000f, 1.0f, 0.8f)  # Guitar harmonics
+                    ParametricBand(60f, 2.0f, 0.9f),
+                    ParametricBand(120f, 1.0f, 1.0f),
+                    ParametricBand(400f, 2.5f, 1.2f),
+                    ParametricBand(1200f, 3.0f, 1.1f),
+                    ParametricBand(2500f, 1.5f, 0.8f),
+                    ParametricBand(5000f, 2.0f, 0.9f),
+                    ParametricBand(10000f, 1.0f, 0.8f)
                 ),
                 graphicBands = floatArrayOf(2.0f, 1.5f, 2.5f, 3.0f, 1.5f, 2.0f, 1.5f, 1.0f, 0.5f, 0.0f),
                 stereoExpansion = 0.4f,
@@ -98,13 +98,13 @@ class PresetRepository @Inject constructor(
                 description = "Natural midrange for acoustic instruments",
                 category = PresetCategory.GENRE,
                 parametricBands = listOf(
-                    ParametricBand(50f, 1.0f, 0.8f),    // Upright bass
-                    ParametricBand(100f, 0.5f, 1.0f),   // Bass warmth
-                    ParametricBand(300f, 1.5f, 1.1f),   // Piano body
-                    ParametricBand(1000f, 2.0f, 0.9f),  // Vocal/horn presence
-                    ParametricBand(3000f, 1.0f, 0.8f),  // Brass brightness
-                    ParametricBand(7000f, 1.5f, 0.7f),  // Cymbal detail
-                    ParametricBand(15000f, 0.5f, 0.6f)  # Natural air
+                    ParametricBand(50f, 1.0f, 0.8f),
+                    ParametricBand(100f, 0.5f, 1.0f),
+                    ParametricBand(300f, 1.5f, 1.1f),
+                    ParametricBand(1000f, 2.0f, 0.9f),
+                    ParametricBand(3000f, 1.0f, 0.8f),
+                    ParametricBand(7000f, 1.5f, 0.7f),
+                    ParametricBand(15000f, 0.5f, 0.6f)
                 ),
                 graphicBands = floatArrayOf(1.0f, 0.5f, 1.5f, 2.0f, 1.0f, 1.5f, 1.0f, 0.5f, 0.0f, -0.5f),
                 stereoExpansion = 0.2f,
@@ -118,13 +118,13 @@ class PresetRepository @Inject constructor(
                 description = "Enhanced vocal clarity and presence",
                 category = PresetCategory.PURPOSE,
                 parametricBands = listOf(
-                    ParametricBand(80f, -1.0f, 0.8f),   // Reduce muddiness
-                    ParametricBand(200f, -1.5f, 1.0f),  // Proximity effect
-                    ParametricBand(800f, 1.0f, 1.2f),   // Vocal warmth
-                    ParametricBand(2000f, 3.0f, 1.0f),  // Vocal presence
-                    ParametricBand(4000f, 2.0f, 0.8f),  // Consonant clarity
-                    ParametricBand(8000f, 1.0f, 0.7f),  // Sibilance control
-                    ParametricBand(12000f, 0.5f, 0.6f)  # Natural brightness
+                    ParametricBand(80f, -1.0f, 0.8f),
+                    ParametricBand(200f, -1.5f, 1.0f),
+                    ParametricBand(800f, 1.0f, 1.2f),
+                    ParametricBand(2000f, 3.0f, 1.0f),
+                    ParametricBand(4000f, 2.0f, 0.8f),
+                    ParametricBand(8000f, 1.0f, 0.7f),
+                    ParametricBand(12000f, 0.5f, 0.6f)
                 ),
                 graphicBands = floatArrayOf(-1.0f, -1.5f, 0.0f, 1.0f, 3.0f, 2.0f, 1.0f, 0.5f, 0.0f, 0.0f),
                 stereoExpansion = 0.1f,
@@ -138,13 +138,13 @@ class PresetRepository @Inject constructor(
                 description = "Compensates for typical headphone response",
                 category = PresetCategory.CORRECTION,
                 parametricBands = listOf(
-                    ParametricBand(30f, 2.0f, 0.7f),    // Sub-bass extension
-                    ParametricBand(80f, 1.0f, 0.9f),    // Bass presence
-                    ParametricBand(200f, -0.5f, 1.0f),  // Lower mid clarity
-                    ParametricBand(1000f, 0.0f, 1.0f),  // Reference point
-                    ParametricBand(3000f, -2.0f, 1.2f), // Harman curve dip
-                    ParametricBand(6000f, -1.0f, 0.8f), // Reduce harshness
-                    ParametricBand(10000f, 1.5f, 0.7f)  # Restore air
+                    ParametricBand(30f, 2.0f, 0.7f),
+                    ParametricBand(80f, 1.0f, 0.9f),
+                    ParametricBand(200f, -0.5f, 1.0f),
+                    ParametricBand(1000f, 0.0f, 1.0f),
+                    ParametricBand(3000f, -2.0f, 1.2f),
+                    ParametricBand(6000f, -1.0f, 0.8f),
+                    ParametricBand(10000f, 1.5f, 0.7f)
                 ),
                 graphicBands = floatArrayOf(2.0f, 1.0f, -0.5f, 0.0f, -2.0f, -1.0f, 0.5f, 1.5f, 1.0f, 0.5f),
                 stereoExpansion = 0.0f,
@@ -158,13 +158,13 @@ class PresetRepository @Inject constructor(
                 description = "Reduced dynamics for quiet listening",
                 category = PresetCategory.PURPOSE,
                 parametricBands = listOf(
-                    ParametricBand(40f, -2.0f, 0.8f),   // Reduce bass bleed
-                    ParametricBand(100f, -1.0f, 1.0f),  // Controlled low end
-                    ParametricBand(500f, 1.0f, 1.1f),   // Midrange focus
-                    ParametricBand(1500f, 2.0f, 0.9f),  // Vocal clarity
-                    ParametricBand(4000f, 1.5f, 0.8f),  // Detail enhancement
-                    ParametricBand(8000f, -0.5f, 0.7f), // Reduce fatigue
-                    ParametricBand(16000f, -1.0f, 0.6f) # Gentle top end
+                    ParametricBand(40f, -2.0f, 0.8f),
+                    ParametricBand(100f, -1.0f, 1.0f),
+                    ParametricBand(500f, 1.0f, 1.1f),
+                    ParametricBand(1500f, 2.0f, 0.9f),
+                    ParametricBand(4000f, 1.5f, 0.8f),
+                    ParametricBand(8000f, -0.5f, 0.7f),
+                    ParametricBand(16000f, -1.0f, 0.6f)
                 ),
                 graphicBands = floatArrayOf(-2.0f, -1.0f, 0.5f, 1.0f, 2.0f, 1.5f, 0.0f, -0.5f, -1.0f, -1.5f),
                 stereoExpansion = 0.0f,
@@ -348,10 +348,9 @@ class PresetRepository @Inject constructor(
         presetDao.incrementUsageCount(presetId)
     }
 
-    suspend fun initializeBuiltInPresets() = withContext(Dispatchers.IO) {
+    suspend fun markFirstRunComplete() = withContext(Dispatchers.IO) {
         val prefsFile = File(context.filesDir, DEFAULT_PRESETS_FILE)
         if (!prefsFile.exists()) {
-            // First run - create marker file
             prefsFile.createNewFile()
         }
     }
