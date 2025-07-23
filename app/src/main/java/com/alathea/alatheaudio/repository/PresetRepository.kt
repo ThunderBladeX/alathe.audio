@@ -397,7 +397,7 @@ class PresetRepository @Inject constructor(
     
     private fun builtInToPreset(builtIn: BuiltInPreset): AudioPreset {
         return AudioPreset(
-            id = builtIn.name.hashCode().toLong(),
+            id = builtIn.id,
             name = builtIn.name,
             description = builtIn.description,
             category = builtIn.category,
