@@ -158,6 +158,30 @@ class EqualizerViewModel @Inject constructor(
         applyEqualizerSettings()
     }
 
+    fun importPreset(file: File) {
+        viewModelScope.launch {
+            try {
+                val preset = presetRepository.importPreset(file)
+                val currentPresets = _presets.value.toMutableList()
+                currentPresets.add(EqPreset(name = preset.name, data = convertAudioPresetToPresetData(preset)))
+                _presets.value = currentPresets
+            } catch (e: Exception) {
+                println("ERROR: Failed to import preset from file: ${file.name}. ${e.message}")
+            }
+        }
+    }
+
+    private fun convertAudioPresetToPresetData(audioPreset: com.alathea.alatheaudio.model.AudioPreset): PresetData {
+        return PresetData.Parametric(audioPreset.parametricBands.map { band ->
+            ParametricBand(
+                id = 0,
+                frequency = band.frequency,
+                gain = band.gain,
+                q = band.q
+            )
+        })
+    }
+
     private fun createDefaultParametricBands(): List<ParametricBand> {
         return listOf(
             ParametricBand(id = 1, frequency = 31f, gain = 0f, q = 1.41f),
