@@ -442,7 +442,7 @@ data class PresetBackupData(
 
 @kotlinx.serialization.Serializable
 data class BuiltInPreset(
-    val id: Long, // Added ID to match AudioPreset structure better
+    val id: Long,
     val name: String,
     val description: String,
     val category: PresetCategory,
