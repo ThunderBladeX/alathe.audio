@@ -30,6 +30,82 @@ import com.alathea.mediascanner.entity.TrackEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+@Composable
+fun rememberDragDropState(
+    lazyListState: LazyListState,
+    onMove: (Int, Int) -> Unit
+): DragDropState {
+    return remember { DragDropState(lazyListState, onMove) }
+}
+
+class DragDropState internal constructor(
+    private val lazyListState: LazyListState,
+    private val onMove: (Int, Int) -> Unit
+) {
+    var draggingItemIndex by mutableStateOf<Int?>(null)
+        private set
+
+    internal var draggingItemOffset by mutableFloatStateOf(0f)
+        private set
+
+    internal var initialDraggingItemOffset by mutableStateOf<Offset?>(null)
+        private set
+
+    internal val scope = CoroutineScope(Job())
+
+    internal fun onDragStart(offset: Offset, index: Int) {
+        draggingItemIndex = index
+        initialDraggingItemOffset = offset
+    }
+
+    internal fun onDragInterrupted() {
+        draggingItemIndex = null
+        draggingItemOffset = 0f
+        initialDraggingItemOffset = null
+    }
+
+    internal fun onDrag(offset: Offset) {
+        draggingItemOffset += offset.y
+        
+        val initialOffset = initialDraggingItemOffset ?: return
+        val startOffset = initialOffset.y + draggingItemOffset
+        val endOffset = startOffset + (lazyListState.layoutInfo.visibleItemsInfo.firstOrNull()?.size?.height ?: 0)
+        val currentIndexOfDraggedItem = draggingItemIndex ?: return
+
+        lazyListState.layoutInfo.visibleItemsInfo
+            .firstOrNull { item ->
+                val itemCenterY = item.offset.y + item.size.height / 2
+                item.index != currentIndexOfDraggedItem && startOffset < itemCenterY && endOffset > itemCenterY
+            }?.also { itemOver ->
+                onMove(currentIndexOfDraggedItem, itemOver.index)
+                draggingItemIndex = itemOver.index
+            }
+    }
+}
+
+fun Modifier.draggableItem(
+    state: DragDropState,
+    index: Int
+): Modifier = this
+    .graphicsLayer {
+        val isDragging = index == state.draggingItemIndex
+        translationY = if (isDragging) state.draggingItemOffset else 0f
+        scaleX = if (isDragging) 1.05f else 1f
+        scaleY = if (isDragging) 1.05f else 1f
+        shadowElevation = if (isDragging) 8f else 0f
+    }
+    .pointerInput(Unit) {
+        detectDragGesturesAfterLongPress(
+            onDragStart = { offset -> state.onDragStart(offset, index) },
+            onDragEnd = { state.onDragInterrupted() },
+            onDragCancel = { state.onDragInterrupted() },
+            onDrag = { change, dragAmount ->
+                change.consume()
+                state.onDrag(dragAmount)
+            }
+        )
+    }
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PlaylistView(
@@ -53,14 +129,13 @@ fun PlaylistView(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
-    val density = LocalDensity.current
     val scope = rememberCoroutineScope()
     
     var selectedItems by remember { mutableStateOf(setOf<Int>()) }
     var isMultiSelectMode by remember { mutableStateOf(false) }
-    var draggedItem by remember { mutableStateOf<Int?>(null) }
-    
+
     val listState = rememberLazyListState()
+    val dragDropState = rememberDragDropState(listState, onTrackReorder)
 
     var showFastScroll by remember { mutableStateOf(false) }
     val fastScrollAlpha by animateFloatAsState(
@@ -95,6 +170,14 @@ fun PlaylistView(
                 val isCurrentTrack = track.id == currentTrack?.id
                 val isSelected = selectedItems.contains(index)
                 val isDragged = draggedItem == index
+
+                val itemModifier = if (isReorderable && !isMultiSelectMode) {
+                    Modifier
+                        .animateItemPlacement(animationSpec = tween(300))
+                        .draggableItem(dragDropState, index)
+                } else {
+                    Modifier.animateItemPlacement(animationSpec = tween(300))
+                }
                 
                 TrackItem(
                     track = track,
@@ -129,37 +212,17 @@ fun PlaylistView(
                     },
                     onLongPress = { longPressTrack, longPressIndex ->
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (enableMultiSelect) {
+                        if (enableMultiSelect && !isReorderable) {
                             isMultiSelectMode = true
                             selectedItems = setOf(longPressIndex)
                             onMultiSelectToggle(longPressTrack, longPressIndex, true)
-                        } else {
-                            onTrackLongPress(longPressTrack, longPressIndex)
+                        } else if (!isReorderable) {
+                             onTrackLongPress(longPressTrack, longPressIndex)
                         }
                     },
-                    onSwipeRemove = if (enableSwipeActions) { swipeTrack, swipeIndex ->
-                        onSwipeRemove(swipeTrack, swipeIndex)
-                    } else null,
-                    onSwipeQueue = if (enableSwipeActions) { swipeTrack, swipeIndex ->
-                        onSwipeQueue(swipeTrack, swipeIndex)
-                    } else null,
-                    onSwipeAddToFavorites = if (enableSwipeActions) { swipeTrack, swipeIndex ->
-                        onSwipeAddToFavorites(swipeTrack, swipeIndex)
-                    } else null,
-                    onDragStart = if (isReorderable) {
-                        { draggedItem = index }
-                    } else null,
-                    onDragEnd = if (isReorderable) {
-                        { fromIndex, toIndex ->
-                            draggedItem = null
-                            if (fromIndex != toIndex) {
-                                onTrackReorder(fromIndex, toIndex)
-                            }
-                        }
-                    } else null,
-                    modifier = Modifier.animateItemPlacement(
-                        animationSpec = tween(300)
-                    )
+                    onSwipeRemove = onSwipeRemove,
+                    onSwipeQueue = onSwipeQueue,
+                    modifier = itemModifier
                 )
             }
 
@@ -190,12 +253,10 @@ fun PlaylistView(
         AnimatedVisibility(
             visible = isMultiSelectMode,
             enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = tween(300)
+                initialOffsetY = { it }
             ),
             exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(300)
+                targetOffsetY = { it }
             ),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
@@ -240,6 +301,7 @@ fun PlaylistView(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun TrackItem(
     track: TrackEntity,
@@ -257,11 +319,8 @@ private fun TrackItem(
     isReorderable: Boolean,
     onClick: (TrackEntity, Int) -> Unit,
     onLongPress: (TrackEntity, Int) -> Unit,
-    onSwipeRemove: ((TrackEntity, Int) -> Unit)?,
-    onSwipeQueue: ((TrackEntity, Int) -> Unit)?,
-    onSwipeAddToFavorites: ((TrackEntity, Int) -> Unit)?,
-    onDragStart: (() -> Unit)?,
-    onDragEnd: ((Int, Int) -> Unit)?,
+    onSwipeRemove: (TrackEntity, Int) -> Unit,
+    onSwipeQueue: (TrackEntity, Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -271,23 +330,23 @@ private fun TrackItem(
         animationSpec = tween(200),
         label = "elevation"
     )
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isDragged) 1.02f else 1f,
-        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy),
-        label = "scale"
-    )
 
     var swipeOffset by remember { mutableFloatStateOf(0f) }
     val swipeThreshold = with(LocalDensity.current) { 80.dp.toPx() }
+
+    val combinedClickableModifier = if (isDragged) {
+        Modifier
+    } else {
+        Modifier.combinedClickable(
+            onClick = { onClick(track, index) },
+            onLongClick = { onLongPress(track, index) }
+        )
+    }
     
     Card(
         modifier = modifier
             .fillMaxWidth()
             .graphicsLayer {
-                scaleX = scale
-                scaleY = scale
-                shadowElevation = elevation
                 translationX = swipeOffset
             }
             .then(
@@ -298,26 +357,24 @@ private fun TrackItem(
                             swipeOffset += delta
                         },
                         onDragStopped = { velocity ->
-                            val absOffset = kotlin.math.abs(swipeOffset)
-                            when {
-                                absOffset > swipeThreshold && swipeOffset > 0 -> {
-                                    onSwipeQueue?.invoke(track, index)
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                            scope.launch {
+                                val absOffset = kotlin.math.abs(swipeOffset)
+                                if (absOffset > swipeThreshold) {
+                                    if (swipeOffset > 0) {
+                                        onSwipeQueue(track, index)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    } else {
+                                        onSwipeRemove(track, index)
+                                        haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                    }
                                 }
-                                absOffset > swipeThreshold && swipeOffset < 0 -> {
-                                    onSwipeRemove?.invoke(track, index)
-                                    haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                }
+                            animate(0f, swipeOffset) { value, _ -> swipeOffset = value }
                             }
-                            swipeOffset = 0f
                         }
                     )
                 } else Modifier
             )
-            .combinedClickable(
-                onClick = { onClick(track, index) },
-                onLongClick = { onLongPress(track, index) }
-            ),
+        .then(combinedClickableModifier),
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isSelected -> skin.selectedTrackBackground
@@ -430,20 +487,12 @@ private fun TrackItem(
                     )
                 }
                 
-                if (isReorderable && onDragStart != null) {
+                if (isReorderable && !isMultiSelectMode) {
                     Icon(
                         imageVector = Icons.Default.DragHandle,
                         contentDescription = "Reorder",
                         tint = skin.secondaryTextColor,
-                        modifier = Modifier
-                            .size(20.dp)
-                            .combinedClickable(
-                                onClick = { /* No single click action */ },
-                                onLongClick = {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    onDragStart()
-                                }
-                            )
+                        modifier = Modifier.size(24.dp)
                     )
                 }
             }
@@ -471,6 +520,12 @@ private fun TrackItem(
             }
         }
     }
+}
+
+// Dummy composable
+@Composable
+fun AlbumArt(albumArtUri: String?, size: androidx.compose.ui.unit.Dp, cornerRadius: androidx.compose.ui.unit.Dp) {
+    Box(modifier = Modifier.size(size).background(Color.Gray, RoundedCornerShape(cornerRadius)))
 }
 
 @Composable
