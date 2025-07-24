@@ -33,14 +33,16 @@ import kotlinx.coroutines.launch
 @Composable
 fun rememberDragDropState(
     lazyListState: LazyListState,
-    onMove: (Int, Int) -> Unit
+    onMove: (Int, Int) -> Unit,
+    scope: CoroutineScope = rememberCoroutineScope()
 ): DragDropState {
     return remember { DragDropState(lazyListState, onMove) }
 }
 
 class DragDropState internal constructor(
     private val lazyListState: LazyListState,
-    private val onMove: (Int, Int) -> Unit
+    private val onMove: (Int, Int) -> Unit,
+    internal val scope: CoroutineScope
 ) {
     var draggingItemIndex by mutableStateOf<Int?>(null)
         private set
@@ -169,7 +171,7 @@ fun PlaylistView(
             ) { index, track ->
                 val isCurrentTrack = track.id == currentTrack?.id
                 val isSelected = selectedItems.contains(index)
-                val isDragged = draggedItem == index
+                val isDragged = dragDropState.draggingItemIndex == index
 
                 val itemModifier = if (isReorderable && !isMultiSelectMode) {
                     Modifier
@@ -324,6 +326,7 @@ private fun TrackItem(
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
 
     val elevation by animateFloatAsState(
         targetValue = if (isDragged) 8f else if (isCurrentTrack) 4f else 0f,
