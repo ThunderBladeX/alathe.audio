@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alathea.alatheaudio.ui.theme.Skin
+import com.alathea.alatheaudio.ui.components.TrackListConfiguration
 import com.alathea.mediascanner.entity.TrackEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -110,7 +111,7 @@ fun Modifier.draggableItem(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun PlaylistView(
+fun TrackListView(
     tracks: List<TrackEntity>,
     currentTrack: TrackEntity?,
     isPlaying: Boolean,
@@ -121,6 +122,7 @@ fun PlaylistView(
     showAlbumArt: Boolean = true,
     enableSwipeActions: Boolean = true,
     enableMultiSelect: Boolean = false,
+    config: TrackListConfiguration,
     onTrackClick: (TrackEntity, Int) -> Unit,
     onTrackLongPress: (TrackEntity, Int) -> Unit = { _, _ -> },
     onTrackReorder: (Int, Int) -> Unit = { _, _ -> },
@@ -173,7 +175,7 @@ fun PlaylistView(
                 val isSelected = selectedItems.contains(index)
                 val isDragged = dragDropState.draggingItemIndex == index
 
-                val itemModifier = if (isReorderable && !isMultiSelectMode) {
+                val itemModifier = if (config.isReorderable && !isMultiSelectMode) {
                     Modifier
                         .animateItemPlacement(animationSpec = tween(300))
                         .draggableItem(dragDropState, index)
@@ -190,11 +192,11 @@ fun PlaylistView(
                     isMultiSelectMode = isMultiSelectMode,
                     isDragged = isDragged,
                     skin = skin,
-                    showTrackNumber = showTrackNumbers,
-                    showDuration = showDurations,
-                    showAlbumArt = showAlbumArt,
-                    enableSwipeActions = enableSwipeActions && !isMultiSelectMode,
-                    isReorderable = isReorderable && !isMultiSelectMode,
+                    showTrackNumber = config.showTrackNumbers,
+                    showDuration = config.showDurations,
+                    showAlbumArt = config.showAlbumArt,
+                    enableSwipeActions = config.enableSwipeActions && !isMultiSelectMode,
+                    isReorderable = config.isReorderable && !isMultiSelectMode,
                     onClick = { clickedTrack, clickedIndex ->
                         if (isMultiSelectMode) {
                             val newSelection = if (isSelected) {
@@ -214,11 +216,11 @@ fun PlaylistView(
                     },
                     onLongPress = { longPressTrack, longPressIndex ->
                         haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (enableMultiSelect && !isReorderable) {
+                        if (config.enableMultiSelect && !config.isReorderable) {
                             isMultiSelectMode = true
                             selectedItems = setOf(longPressIndex)
                             onMultiSelectToggle(longPressTrack, longPressIndex, true)
-                        } else if (!isReorderable) {
+                        } else if (!config.isReorderable) {
                              onTrackLongPress(longPressTrack, longPressIndex)
                         }
                     },
@@ -230,7 +232,7 @@ fun PlaylistView(
 
             if (tracks.isEmpty()) {
                 item {
-                    EmptyPlaylistState(
+                    EmptyState(
                         skin = skin,
                         modifier = Modifier
                             .fillMaxWidth()
