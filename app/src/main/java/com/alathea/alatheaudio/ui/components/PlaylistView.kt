@@ -213,7 +213,6 @@ fun PlaylistView(
                     }
                 },
                 onPlaySelected = {
-                    // Play first selected track and queue the rest
                     val sortedSelection = selectedItems.sorted()
                     if (sortedSelection.isNotEmpty()) {
                         onTrackClick(tracks[sortedSelection.first()], sortedSelection.first())
@@ -302,12 +301,10 @@ private fun TrackItem(
                             val absOffset = kotlin.math.abs(swipeOffset)
                             when {
                                 absOffset > swipeThreshold && swipeOffset > 0 -> {
-                                    // Swipe right - Queue
                                     onSwipeQueue?.invoke(track, index)
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
                                 absOffset > swipeThreshold && swipeOffset < 0 -> {
-                                    // Swipe left - Remove
                                     onSwipeRemove?.invoke(track, index)
                                     haptic.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                                 }
@@ -339,7 +336,7 @@ private fun TrackItem(
             if (isMultiSelectMode) {
                 Checkbox(
                     checked = isSelected,
-                    onCheckedChange = null, // Handled by card click
+                    onCheckedChange = null,
                     colors = CheckboxDefaults.colors(
                         checkedColor = skin.accentColor
                     )
@@ -350,7 +347,6 @@ private fun TrackItem(
                     contentAlignment = Alignment.Center
                 ) {
                     if (isCurrentTrack && isPlaying) {
-                        // Animated playing indicator
                         PlayingIndicator(
                             color = skin.accentColor,
                             modifier = Modifier.size(16.dp)
@@ -687,7 +683,12 @@ private fun EmptyPlaylistState(
 
 private fun formatDuration(milliseconds: Long): String {
     val totalSeconds = milliseconds / 1000
+    val hours = totalSeconds / 3600
     val minutes = totalSeconds / 60
     val seconds = totalSeconds % 60
-    return String.format("%d:%02d", minutes, seconds)
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%d:%02d", minutes, seconds)
+    }
 }
