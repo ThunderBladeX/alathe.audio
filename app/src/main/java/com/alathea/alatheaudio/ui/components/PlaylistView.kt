@@ -525,7 +525,7 @@ private fun TrackItem(
     }
 }
 
-// Dummy composable
+// ⚠️ Dummy composable
 @Composable
 fun AlbumArt(albumArtUri: String?, size: androidx.compose.ui.unit.Dp, cornerRadius: androidx.compose.ui.unit.Dp) {
     Box(modifier = Modifier.size(size).background(Color.Gray, RoundedCornerShape(cornerRadius)))
