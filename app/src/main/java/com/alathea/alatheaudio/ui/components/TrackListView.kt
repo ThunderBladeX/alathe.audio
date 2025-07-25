@@ -30,6 +30,8 @@ import com.alathea.alatheaudio.ui.components.TrackListConfiguration
 import com.alathea.mediascanner.entity.TrackEntity
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.snapshotFlow
 
 @Composable
 fun rememberDragDropState(
@@ -148,12 +150,15 @@ fun TrackListView(
         label = "fastScrollAlpha"
     )
 
-    LaunchedEffect(listState.isScrollInProgress) {
-        if (listState.isScrollInProgress) {
-            showFastScroll = true
-        } else {
-            delay(2000)
-            showFastScroll = false
+    LaunchedEffect(listState) {
+    snapshotFlow { listState.isScrollInProgress }
+        .collectLatest { isScrolling ->
+            if (isScrolling) {
+                showFastScroll = true
+            } else {
+                delay(2000)
+                showFastScroll = false
+            }
         }
     }
     
