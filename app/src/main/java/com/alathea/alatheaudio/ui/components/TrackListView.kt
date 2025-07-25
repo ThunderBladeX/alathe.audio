@@ -365,6 +365,7 @@ private fun TrackItem(
     onLongPress: (TrackEntity, Int) -> Unit,
     onSwipeRemove: (TrackEntity, Int) -> Unit,
     onSwipeQueue: (TrackEntity, Int) -> Unit,
+    snackbarHostState: SnackbarHostState,
     modifier: Modifier = Modifier
 ) {
     val haptic = LocalHapticFeedback.current
@@ -419,7 +420,7 @@ private fun TrackItem(
                     )
                 } else Modifier
             )
-        .then(combinedClickableModifier),
+            .then(combinedClickableModifier),
         colors = CardDefaults.cardColors(
             containerColor = when {
                 isSelected -> skin.selectedTrackBackground
