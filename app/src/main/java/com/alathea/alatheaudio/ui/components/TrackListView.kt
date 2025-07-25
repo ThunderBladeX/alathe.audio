@@ -136,7 +136,8 @@ fun TrackListView(
 ) {
     val haptic = LocalHapticFeedback.current
     val scope = rememberCoroutineScope()
-    
+    val snackbarHostState = remember { SnackbarHostState() }
+
     var selectedItems by remember { mutableStateOf(setOf<Int>()) }
     var isMultiSelectMode by remember { mutableStateOf(false) }
 
@@ -162,87 +163,124 @@ fun TrackListView(
         }
     }
     
-    Box(modifier = modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = config.contentPadding,
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
-            itemsIndexed(
-                items = tracks,
-                key = { _, track -> track.id }
-            ) { index, track ->
-                val isCurrentTrack = track.id == currentTrack?.id
-                val isSelected = selectedItems.contains(index)
-                val isDragged = dragDropState.draggingItemIndex == index
-
-                val itemModifier = if (config.isReorderable && !isMultiSelectMode) {
-                    Modifier
-                        .animateItemPlacement(animationSpec = tween(300))
-                        .draggableItem(dragDropState, index)
-                } else {
-                    Modifier.animateItemPlacement(animationSpec = tween(300))
-                }
-                
-                TrackItem(
-                    track = track,
-                    index = index,
-                    isCurrentTrack = isCurrentTrack,
-                    isPlaying = isPlaying && isCurrentTrack,
-                    isSelected = isSelected,
-                    isMultiSelectMode = isMultiSelectMode,
-                    isDragged = isDragged,
-                    skin = skin,
-                    showTrackNumber = config.showTrackNumbers,
-                    showDuration = config.showDurations,
-                    showAlbumArt = config.showAlbumArt,
-                    enableSwipeActions = config.enableSwipeActions && !isMultiSelectMode,
-                    isReorderable = config.isReorderable && !isMultiSelectMode,
-                    onClick = { clickedTrack, clickedIndex ->
-                        if (isMultiSelectMode) {
-                            val newSelection = if (isSelected) {
-                                selectedItems - clickedIndex
-                            } else {
-                                selectedItems + clickedIndex
-                            }
-                            selectedItems = newSelection
-                            onMultiSelectToggle(clickedTrack, clickedIndex, !isSelected)
-                            
-                            if (newSelection.isEmpty()) {
-                                isMultiSelectMode = false
-                            }
-                        } else {
-                            onTrackClick(clickedTrack, clickedIndex)
-                        }
-                    },
-                    onLongPress = { longPressTrack, longPressIndex ->
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        if (config.enableMultiSelect && !config.isReorderable) {
-                            isMultiSelectMode = true
-                            selectedItems = setOf(longPressIndex)
-                            onMultiSelectToggle(longPressTrack, longPressIndex, true)
-                        } else if (!config.isReorderable) {
-                             onTrackLongPress(longPressTrack, longPressIndex)
-                        }
-                    },
-                    onSwipeRemove = onSwipeRemove,
-                    onSwipeQueue = onSwipeQueue,
-                    modifier = itemModifier
+    Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                Snackbar(
+                    containerColor = skin.surfaceColor,
+                    contentColor = skin.primaryTextColor,
+                    actionColor = skin.accentColor,
+                    snackbarData = data
                 )
             }
+        },
+        modifier = modifier
+    ) { paddingValues ->
+        Box(modifier = Modifier
+            .fillMaxSize()
+            .padding(paddingValues)
+        ) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = config.contentPadding,
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                itemsIndexed(
+                    items = tracks,
+                    key = { _, track -> track.id }
+                ) { index, track ->
+                    val isCurrentTrack = track.id == currentTrack?.id
+                    val isSelected = selectedItems.contains(index)
+                    val isDragged = dragDropState.draggingItemIndex == index
 
-            if (tracks.isEmpty()) {
-                item {
-                    EmptyState(
+                    val itemModifier = if (config.isReorderable && !isMultiSelectMode) {
+                        Modifier
+                            .animateItemPlacement(animationSpec = tween(300))
+                            .draggableItem(dragDropState, index)
+                    } else {
+                        Modifier.animateItemPlacement(animationSpec = tween(300))
+                    }
+                
+                    TrackItem(
+                        track = track,
+                        index = index,
+                        isCurrentTrack = isCurrentTrack,
+                        isPlaying = isPlaying && isCurrentTrack,
+                        isSelected = isSelected,
+                        isMultiSelectMode = isMultiSelectMode,
+                        isDragged = isDragged,
                         skin = skin,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 32.dp)
+                        showTrackNumber = config.showTrackNumbers,
+                        showDuration = config.showDurations,
+                        showAlbumArt = config.showAlbumArt,
+                        enableSwipeActions = config.enableSwipeActions && !isMultiSelectMode,
+                        isReorderable = config.isReorderable && !isMultiSelectMode,
+                        onClick = { clickedTrack, clickedIndex ->
+                            if (isMultiSelectMode) {
+                                val newSelection = if (isSelected) {
+                                    selectedItems - clickedIndex
+                                } else {
+                                    selectedItems + clickedIndex
+                                }
+                                selectedItems = newSelection
+                                onMultiSelectToggle(clickedTrack, clickedIndex, !isSelected)
+                            
+                                if (newSelection.isEmpty()) {
+                                    isMultiSelectMode = false
+                                }
+                            } else {
+                                onTrackClick(clickedTrack, clickedIndex)
+                            }
+                        },
+                        onLongPress = { longPressTrack, longPressIndex ->
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            if (config.enableMultiSelect && !config.isReorderable) {
+                                isMultiSelectMode = true
+                                selectedItems = setOf(longPressIndex)
+                                onMultiSelectToggle(longPressTrack, longPressIndex, true)
+                            } else if (!config.isReorderable) {
+                                onTrackLongPress(longPressTrack, longPressIndex)
+                            }
+                        },
+                        onSwipeRemove = { trackItem, trackIndex ->
+                            onSwipeRemove(trackItem, trackIndex)
+                            scope.launch {
+                                val result = snackbarHostState.showSnackbar(
+                                    message = "${trackItem.title} removed",
+                                    actionLabel = "Undo",
+                                    duration = SnackbarDuration.Short
+                                )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    // ⚠️ Handle undo action
+                                }
+                            }
+                        },
+                        onSwipeQueue = { trackItem, trackIndex ->
+                            onSwipeQueue(trackItem, trackIndex)
+                            scope.launch {
+                                snackbarHostState.showSnackbar(
+                                    message = "Added ${trackItem.title} to queue",
+                                    duration = SnackbarDuration.Short
+                                )
+                            }
+                        },
+                        snackbarHostState = snackbarHostState,
+                        modifier = itemModifier
                     )
                 }
+
+                if (tracks.isEmpty()) {
+                    item {
+                        EmptyState(
+                            skin = skin,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp)
+                        )
+                    }
+                }
             }
-        }
 
         if (tracks.size > 50) {
             FastScrollIndicator(
