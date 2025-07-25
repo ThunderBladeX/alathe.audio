@@ -27,6 +27,7 @@ data class TrackListConfiguration(
             showTrackNumbers = true,
             showAlbumArt = true,
             showDurations = true,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         )
 
         fun libraryView() = TrackListConfiguration(
@@ -36,6 +37,7 @@ data class TrackListConfiguration(
             showTrackNumbers = false,
             showAlbumArt = true,
             showDurations = true,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         )
 
         fun staticAlbumView() = TrackListConfiguration(
@@ -45,6 +47,7 @@ data class TrackListConfiguration(
             showTrackNumbers = true,
             showAlbumArt = false,
             showDurations = true,
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
         )
     }
 }
