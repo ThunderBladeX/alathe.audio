@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.alathea.alatheaudio.ui.theme.Skin
@@ -176,10 +177,12 @@ fun TrackListView(
         },
         modifier = modifier
     ) { paddingValues ->
-        Box(modifier = Modifier
+        BoxWithConstraints(modifier = Modifier
             .fillMaxSize()
             .padding(paddingValues)
         ) {
+            val containerHeight = this.maxHeight
+
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
@@ -282,65 +285,67 @@ fun TrackListView(
                 }
             }
 
-        if (tracks.size > 50) {
-            FastScrollIndicator(
-                listState = listState,
-                itemCount = tracks.size,
-                skin = skin,
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 8.dp)
-                    .graphicsLayer { alpha = fastScrollAlpha }
-            )
-        }
+            if (tracks.size > 50) {
+                FastScrollIndicator(
+                    listState = listState,
+                    itemCount = tracks.size,
+                    skin = skin,
+                    containerHeight = containerHeight,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .padding(end = 8.dp)
+                        .graphicsLayer { alpha = fastScrollAlpha }
+                )
+            }
 
-        AnimatedVisibility(
-            visible = isMultiSelectMode,
-            enter = slideInVertically(
-                initialOffsetY = { it }
-            ),
-            exit = slideOutVertically(
-                targetOffsetY = { it }
-            ),
-            modifier = Modifier.align(Alignment.BottomCenter)
-        ) {
-            MultiSelectToolbar(
-                selectedCount = selectedItems.size,
-                skin = skin,
-                onClearSelection = {
-                    selectedItems = emptySet()
-                    isMultiSelectMode = false
-                },
-                onSelectAll = {
-                    selectedItems = tracks.indices.toSet()
-                    tracks.forEachIndexed { index, track ->
-                        onMultiSelectToggle(track, index, true)
-                    }
-                },
-                onPlaySelected = {
-                    val sortedSelection = selectedItems.sorted()
-                    if (sortedSelection.isNotEmpty()) {
-                        onTrackClick(tracks[sortedSelection.first()], sortedSelection.first())
-                    }
-                    selectedItems = emptySet()
-                    isMultiSelectMode = false
-                },
-                onQueueSelected = {
-                    selectedItems.sorted().forEach { index ->
-                        onSwipeQueue(tracks[index], index)
-                    }
-                    selectedItems = emptySet()
-                    isMultiSelectMode = false
-                },
-                onDeleteSelected = {
-                    selectedItems.sortedDescending().forEach { index ->
-                        onSwipeRemove(tracks[index], index)
-                    }
-                    selectedItems = emptySet()
-                    isMultiSelectMode = false
-                },
-                modifier = Modifier.padding(16.dp)
-            )
+            AnimatedVisibility(
+                visible = isMultiSelectMode,
+                enter = slideInVertically(
+                    initialOffsetY = { it }
+                ),
+                exit = slideOutVertically(
+                    targetOffsetY = { it }
+                ),
+                modifier = Modifier.align(Alignment.BottomCenter)
+            ) {
+                MultiSelectToolbar(
+                    selectedCount = selectedItems.size,
+                    skin = skin,
+                    onClearSelection = {
+                        selectedItems = emptySet()
+                        isMultiSelectMode = false
+                    },
+                    onSelectAll = {
+                        selectedItems = tracks.indices.toSet()
+                        tracks.forEachIndexed { index, track ->
+                            onMultiSelectToggle(track, index, true)
+                        }
+                    },
+                    onPlaySelected = {
+                        val sortedSelection = selectedItems.sorted()
+                        if (sortedSelection.isNotEmpty()) {
+                            onTrackClick(tracks[sortedSelection.first()], sortedSelection.first())
+                        }
+                        selectedItems = emptySet()
+                        isMultiSelectMode = false
+                    },
+                    onQueueSelected = {
+                        selectedItems.sorted().forEach { index ->
+                            onSwipeQueue(tracks[index], index)
+                        }
+                        selectedItems = emptySet()
+                        isMultiSelectMode = false
+                    },
+                    onDeleteSelected = {
+                        selectedItems.sortedDescending().forEach { index ->
+                            onSwipeRemove(tracks[index], index)
+                        }
+                        selectedItems = emptySet()
+                        isMultiSelectMode = false
+                    },
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
         }
     }
 }
@@ -617,20 +622,32 @@ private fun FastScrollIndicator(
     listState: LazyListState,
     itemCount: Int,
     skin: Skin,
+    containerHeight: Dp,
     modifier: Modifier = Modifier
 ) {
+    val visibleItemsCount by remember {
+        derivedStateOf { listState.layoutInfo.visibleItemsInfo.size }
+    }
+
+    if (visibleItemsCount >= itemCount) {
+        return
+    }
+
     val firstVisibleIndex by remember {
         derivedStateOf { listState.firstVisibleItemIndex }
     }
-    
-    val progress = if (itemCount > 0) {
-        firstVisibleIndex.toFloat() / itemCount.toFloat()
-    } else 0f
-    
+
+    val scrollableItemCount = (itemCount - visibleItemsCount).toFloat()
+    val progress = (firstVisibleIndex.toFloat() / scrollableItemCount).coerceIn(0f, 1f)
+    val thumbHeight = 40.dp
+    val trackHeight = containerHeight
+    val maxThumbOffset = trackHeight - thumbHeight
+    val thumbOffset = maxThumbOffset * progress
+
     Box(
         modifier = modifier
             .width(4.dp)
-            .height(100.dp)
+            .height(trackHeight)
             .background(
                 color = skin.secondaryTextColor.copy(alpha = 0.3f),
                 shape = RoundedCornerShape(2.dp)
@@ -639,12 +656,12 @@ private fun FastScrollIndicator(
         Box(
             modifier = Modifier
                 .width(4.dp)
-                .height(20.dp)
+                .height(thumbHeight)
                 .background(
                     color = skin.accentColor,
                     shape = RoundedCornerShape(2.dp)
                 )
-                .offset(y = (80.dp * progress))
+                .offset(y = thumbOffset)
         )
     }
 }
@@ -750,7 +767,7 @@ private fun MultiSelectToolbar(
 }
 
 @Composable
-private fun EmptyPlaylistState(
+private fun EmptyState(
     skin: Skin,
     modifier: Modifier = Modifier
 ) {
@@ -767,14 +784,14 @@ private fun EmptyPlaylistState(
         )
         
         Text(
-            text = "No tracks in this playlist",
+            text = "No tracks found",
             style = MaterialTheme.typography.headlineSmall,
             color = skin.primaryTextColor,
             textAlign = TextAlign.Center
         )
         
         Text(
-            text = "Add some music to get started",
+            text = "There is no music to display here.",
             style = MaterialTheme.typography.bodyMedium,
             color = skin.secondaryTextColor,
             textAlign = TextAlign.Center
@@ -785,7 +802,7 @@ private fun EmptyPlaylistState(
 private fun formatDuration(milliseconds: Long): String {
     val totalSeconds = milliseconds / 1000
     val hours = totalSeconds / 3600
-    val minutes = totalSeconds / 60
+    val minutes = (totalSeconds % 3600) / 60
     val seconds = totalSeconds % 60
     return if (hours > 0) {
         String.format("%d:%02d:%02d", hours, minutes, seconds)
