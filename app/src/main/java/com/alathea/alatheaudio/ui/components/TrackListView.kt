@@ -166,10 +166,7 @@ fun TrackListView(
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(
-                horizontal = 16.dp,
-                vertical = 8.dp
-            ),
+            contentPadding = config.contentPadding,
             verticalArrangement = Arrangement.spacedBy(2.dp)
         ) {
             itemsIndexed(
