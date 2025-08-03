@@ -273,11 +273,12 @@ fun AudioPlayerApp(
             composable("library") {
                 LibraryScreen(
                     viewModel = libraryViewModel,
+                    navController = navController,
                     onTrackClick = { track ->
                         nowPlayingViewModel.playTrack(track)
                     },
-                    onNavigateToNowPlaying = {
-                        navController.navigate("nowplaying")
+                    onPlayQueue = { tracks, startTrack ->
+                        nowPlayingViewModel.setQueue(tracks, startTrack)
                     }
                 )
             }
@@ -326,6 +327,30 @@ fun AudioPlayerApp(
                         onNavigateBack = {
                             navController.popBackStack()
                         }
+                    )
+                }
+            }
+
+            composable("album_detail/{albumId}") { backStackEntry ->
+                val albumId = backStackEntry.arguments?.getString("albumId")?.toLongOrNull()
+                if (albumId != null) {
+                    AlbumDetailScreen(
+                        albumId = albumId,
+                        libraryViewModel = libraryViewModel,
+                        nowPlayingViewModel = nowPlayingViewModel,
+                        onNavigateBack = { navController.popBackStack() }
+                    )
+                }
+            }
+
+            composable("artist_detail/{artistId}") { backStackEntry ->
+                val artistId = backStackEntry.arguments?.getString("artistId")?.toLongOrNull()
+                if (artistId != null) {
+                    ArtistDetailScreen(
+                        artistId = artistId,
+                        libraryViewModel = libraryViewModel,
+                        nowPlayingViewModel = nowPlayingViewModel,
+                        onNavigateBack = { navController.popBackStack() }
                     )
                 }
             }
