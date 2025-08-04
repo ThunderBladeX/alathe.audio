@@ -88,7 +88,13 @@ fun LibraryScreen(
     ) { innerPadding ->
         Column(modifier = Modifier.padding(innerPadding)) {
             AnimatedVisibility(visible = isScanningLibrary) {
-                LibraryScanProgress(viewModel = viewModel)
+                val scanProgress by viewModel.scanProgress.collectAsStateWithLifecycle()
+                val scanStatusMessage by viewModel.scanStatusMessage.collectAsStateWithLifecycle()
+                LibraryScanProgress(
+                    progress = scanProgress,
+                    statusMessage = scanStatusMessage,
+                    onCancel = viewModel::cancelScan
+                )
             }
 
             AnimatedVisibility(visible = isSelectionMode) {
@@ -323,6 +329,15 @@ private fun LibraryContent(
                 onTrackClick = onTrackClick,
                 onAlbumClick = { navController.navigate("album_detail/${it.id}") },
                 onArtistClick = { navController.navigate("artist_detail/${it.id}") },
+                onGenreClick = { genre ->
+                    scope.launch {
+                        val tracks = viewModel.getGenreTracks(genre.name)
+                        if (tracks.isNotEmpty()) onPlayQueue(tracks, tracks.first())
+                    }
+                },
+                onPlaylistClick = { playlist ->
+                    navController.navigate("playlist/${playlist.id}")
+                },
                 onShowMore = { tab -> viewModel.selectLibraryTab(tab) }
             )
         } else {
@@ -425,6 +440,7 @@ fun TracksContent(
                         title = "Recently Added",
                         tracks = recentlyAdded,
                         onTrackClick = onTrackClick
+                        onSeeAll = { /* ⚠️ Navigate to a dedicated "Recently Added" screen */ }
                     )
                 }
             }
@@ -650,6 +666,8 @@ fun SearchResultsContent(
     onTrackClick: (Track) -> Unit,
     onAlbumClick: (Album) -> Unit,
     onArtistClick: (Artist) -> Unit,
+    onGenreClick: (Genre) -> Unit,
+    onPlaylistClick: (Playlist) -> Unit,
     onShowMore: (LibraryTab) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -750,7 +768,7 @@ fun SearchResultsContent(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     items(searchResults.playlists.take(10)) { playlist ->
-                        PlaylistGridItem(playlist, { onArtistClick(playlist) }, Modifier.width(120.dp))
+                        PlaylistGridItem(playlist, { onPlaylistClick(playlist) }, Modifier.width(120.dp))
                     }
                 }
             }
